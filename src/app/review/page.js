@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import TellerLink from '@/components/TellerLink';
+import { fetchTransactions, fetchTellerTransactions } from '@/services/api';
 
 export default function ReviewPage() {
   const [transactions, setTransactions] = useState([]);
@@ -308,31 +309,25 @@ export default function ReviewPage() {
     );
   };
 
-  const fetchTransactions = async () => {
+  const handleFetchTransactions = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${backendUrl}/api/teller/transactions`);
-      const data = await response.json();
-      console.log('Transactions:', data);
-      setTransactions(data || []); // Ensure we always have an array
+      const data = await fetchTransactions();
+      setTransactions(data);
     } catch (error) {
       console.error('Error fetching transactions:', error);
-      setTransactions([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchMongoDBTransactions = async () => {
+  const handleFetchTellerTransactions = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${backendUrl}/api/transactions`);
-      const data = await response.json();
-      console.log('MongoDB Transactions:', data);
-      setTransactions(data || []); // Ensure we always have an array
+      const data = await fetchTellerTransactions();
+      setTransactions(data);
     } catch (error) {
-      console.error('Error fetching MongoDB transactions:', error);
-      setTransactions([]); // Set empty array on error
+      console.error('Error fetching Teller transactions:', error);
     } finally {
       setLoading(false);
     }
@@ -429,7 +424,7 @@ export default function ReviewPage() {
       
       <div className="mb-4 flex gap-4">
         <button
-          onClick={fetchTransactions}
+          onClick={handleFetchTransactions}
           disabled={loading || isProduction}
           className={`
             font-bold py-2 px-4 rounded transition-colors duration-200
@@ -440,11 +435,11 @@ export default function ReviewPage() {
           `}
           title={isProduction ? 'Fetching transactions is disabled in production' : ''}
         >
-          {loading ? 'Fetching...' : isProduction ? 'Fetch Disabled in Production' : 'Fetch Teller Transactions'}
+          {loading ? 'Fetching...' : isProduction ? 'Fetch Disabled in Production' : 'Fetch MongoDB Transactions'}
         </button>
 
         <button
-          onClick={fetchMongoDBTransactions}
+          onClick={handleFetchTellerTransactions}
           disabled={loading || isProduction}
           className={`
             font-bold py-2 px-4 rounded transition-colors duration-200
@@ -455,7 +450,7 @@ export default function ReviewPage() {
           `}
           title={isProduction ? 'Fetching transactions is disabled in production' : ''}
         >
-          {loading ? 'Fetching...' : isProduction ? 'Fetch Disabled in Production' : 'Fetch MongoDB Transactions'}
+          {loading ? 'Fetching...' : isProduction ? 'Fetch Disabled in Production' : 'Fetch Teller Transactions'}
         </button>
         
         {transactions.length > 0 && (
