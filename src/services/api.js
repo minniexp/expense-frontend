@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/+$/, ''), // Remove trailing slashes
+  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL, // Remove trailing slashes
   headers: {
     'Content-Type': 'application/json',
   },
