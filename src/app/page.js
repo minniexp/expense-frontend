@@ -29,6 +29,7 @@ export default function HomePage() {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
+      console.log('URL PATH: ', `${backendUrl}/api/transactions`);
       const response = await fetch(`${backendUrl}/api/transactions`);
       const data = await response.json();
       console.log('Transactions:', data);
