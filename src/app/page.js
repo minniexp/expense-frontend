@@ -29,8 +29,20 @@ export default function HomePage() {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      console.log('URL PATH: ', `${backendUrl}/api/transactions`);
-      const response = await fetch(`${backendUrl}/api/transactions`);
+      const response = await fetch(`${backendUrl}/api/transactions`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        mode: 'cors',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
       console.log('Transactions:', data);
       
