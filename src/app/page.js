@@ -140,7 +140,7 @@ export default function HomePage() {
               {monthlyTransactions[selectedMonth].map((transaction) => (
                 <tr key={transaction.tellerTransactionId} className="hover:bg-gray-700">
                   <td className="px-4 py-2 border border-gray-700">
-                    {`${transaction.year}-${transaction.month}-${transaction.day}`}
+                    {`${transaction.month}-${transaction.day}`}
                   </td>
                   <td className="px-4 py-2 border border-gray-700">
                     ${Math.abs(transaction.amount).toFixed(2)}
