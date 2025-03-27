@@ -33,3 +33,54 @@ export const fetchTellerTransactions = async () => {
 //   const response = await api.get(`/transactions/${year}/${month}`);
 //   return response.data;
 // };
+
+// Add return document API methods
+export const fetchReturns = async () => {
+  try {
+    const response = await api.get('/api/returns');
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error);
+    throw error;
+  }
+};
+
+export const createReturn = async (returnData) => {
+  try {
+    const response = await api.post('/api/returns', returnData);
+    return response.data;
+  } catch (error) {
+    console.error('API Error creating return:', error);
+    throw error;
+  }
+};
+
+export const updateReturn = async (id, returnData) => {
+  try {
+    const response = await api.put(`/api/returns/${id}`, returnData);
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error);
+    throw error;
+  }
+};
+
+export const deleteReturn = async (id) => {
+  try {
+    const response = await api.delete(`/api/returns/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error);
+    throw error;
+  }
+};
+
+export const fetchReturn = async (id) => {
+  try {
+    const response = await api.get(`/api/returns/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error);
+    throw error;
+  }
+};

@@ -14,6 +14,7 @@ export default function ReviewPage() {
   const isProduction = process.env.NEXT_PUBLIC_DEPLOYED_STAGE === 'production';
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [monthFilter, setMonthFilter] = useState('all');
+  const [statement, setStatement] = useState('Press Fetch Teller Transactions');
 
   const handleSelectAll = () => {
     if (selectedTransactions.size === transactions.length) {
@@ -59,7 +60,7 @@ export default function ReviewPage() {
 
   const categoryOptions = [
     'fuel', 'personal', 'parents-monthly', 'parents-not monthly',
-    'bill', 'emergency', 'travel', 'offering', 'doctors', 'automobile', 'korea', 'business'
+    'bill', 'emergency', 'travel', 'offering', 'doctors', 'automobile', 'korea', 'business', 'misc', 'payroll'
   ];
 
   const purchaseCategoryOptions = [
@@ -314,6 +315,11 @@ export default function ReviewPage() {
       setLoading(true);
       const data = await fetchTransactions();
       setTransactions(data);
+      if (data.length === 0) {
+        setStatement('No transactions found matching the selected filters.');
+      } else {
+        setStatement('Press Fetch Teller Transactions');
+      }
     } catch (error) {
       console.error('Error fetching transactions:', error);
     } finally {
@@ -326,6 +332,11 @@ export default function ReviewPage() {
       setLoading(true);
       const data = await fetchTellerTransactions();
       setTransactions(data);
+      if (data.length === 0) {
+        setStatement('No transactions found matching the selected filters.');
+      } else {
+        setStatement('Press Fetch Teller Transactions');
+      }
     } catch (error) {
       console.error('Error fetching Teller transactions:', error);
     } finally {
@@ -642,7 +653,7 @@ export default function ReviewPage() {
         </div>
       ) : (
         <div className="text-center text-gray-600">
-          No transactions found matching the selected filters.
+          {statement}
         </div>
       )}
     </div>
