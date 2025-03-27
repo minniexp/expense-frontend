@@ -58,7 +58,12 @@ export default function HomePage() {
       const monthlySummaryData = { ...monthlySummary };
       
       // Fetch all return documents
+
       const response = await fetch(`${backendUrl}/api/returns`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         credentials: 'include'
       });
       
