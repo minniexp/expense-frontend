@@ -8,6 +8,12 @@ const protectedRoutes = ['/user', ...advancedRoutes];
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
+  
+  // Don't run middleware for the home page to prevent loops
+  if (pathname === '/') {
+    return NextResponse.next();
+  }
+  
   console.log(`Middleware running for path: ${pathname}`);
 
   // Check if the route is protected
@@ -42,8 +48,13 @@ export async function middleware(request) {
 
     // If no token, redirect to login
     if (!token) {
+      // Add a query parameter to indicate why the redirect happened
+      const redirectUrl = new URL('/', request.url);
+      redirectUrl.searchParams.set('redirect_reason', 'no_token');
+      redirectUrl.searchParams.set('from', pathname);
+      
       console.log(`No tokens found for ${pathname}, redirecting to /`);
-      return NextResponse.redirect(new URL('/', request.url));
+      return NextResponse.redirect(redirectUrl);
     }
 
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://expense-backend-rose.vercel.app';

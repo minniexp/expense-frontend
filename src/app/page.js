@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -9,7 +9,9 @@ import Cookies from 'js-cookie';
 export default function HomePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { user, login, loading } = useAuth();
+  const { user, loading } = useAuth();
+  const [redirectAttempted, setRedirectAttempted] = useState(false);
+  const [redirectBlocked, setRedirectBlocked] = useState(false);
 
   useEffect(() => {
     // Check for both types of tokens, just like middleware does
@@ -21,20 +23,82 @@ export default function HomePage() {
       hasAuthToken, 
       hasSessionToken,
       sessionAccessToken: session?.accessToken,
-      user
+      user,
+      redirectAttempted,
+      redirectBlocked
     });
     
+    // Prevent infinite redirect loops
+    if (redirectAttempted || redirectBlocked) {
+      return;
+    }
+    
     // Only redirect if we're sure authentication is complete
-    if (!loading && ((hasAuthToken || hasSessionToken) || 
+    if (!loading && status !== 'loading' && ((hasAuthToken || hasSessionToken) || 
         (status === 'authenticated' && session?.accessToken) || 
         user)) {
-      console.log('Authentication confirmed, redirecting to /user');
-      router.push('/user');
+      
+      console.log('Authentication confirmed, scheduling redirect to /user');
+      setRedirectAttempted(true);
+      
+      // Add a slight delay to prevent immediate redirects
+      const redirectTimer = setTimeout(() => {
+        console.log('Executing redirect to /user');
+        router.push('/user');
+      }, 500);
+      
+      return () => clearTimeout(redirectTimer);
     }
-  }, [status, session, router, user, loading]);
+    
+    // Add a timeout to prevent repeated redirect attempts in case of issues
+    const blockTimer = setTimeout(() => {
+      if (!redirectAttempted) {
+        console.log('Blocking further redirect attempts');
+        setRedirectBlocked(true);
+      }
+    }, 5000);
+    
+    return () => clearTimeout(blockTimer);
+  }, [status, session, router, user, loading, redirectAttempted, redirectBlocked]);
+
+  useEffect(() => {
+    // Check for URL parameters that might indicate redirect reasons
+    const url = new URL(window.location.href);
+    const redirectReason = url.searchParams.get('redirect_reason');
+    const redirectFrom = url.searchParams.get('from');
+    
+    if (redirectReason) {
+      console.log(`Redirect received from ${redirectFrom} due to: ${redirectReason}`);
+      
+      // Remove parameters to prevent them from affecting future navigation
+      url.searchParams.delete('redirect_reason');
+      url.searchParams.delete('from');
+      
+      // Update browser URL without causing navigation
+      window.history.replaceState({}, '', url.toString());
+      
+      // Block redirect attempts if we just got redirected here
+      setRedirectBlocked(true);
+      
+      // After some timeout, allow redirects again
+      const timer = setTimeout(() => {
+        setRedirectBlocked(false);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const handleSignIn = async () => {
     await signIn('google');
+  };
+
+  const logTokenDebug = () => {
+    console.log('Current tokens:');
+    console.log('auth_token:', Cookies.get('auth_token'));
+    console.log('next-auth.session-token:', Cookies.get('next-auth.session-token'));
+    console.log('Authorization header would be:', Cookies.get('auth_token') ? 
+      `Bearer ${Cookies.get('auth_token')}` : 'None');
   };
 
   return (
@@ -57,6 +121,15 @@ export default function HomePage() {
           </svg>
           Sign in with Google
         </button>
+
+        <div className="mt-4">
+          <button 
+            onClick={logTokenDebug}
+            className="text-gray-400 text-sm hover:text-white"
+          >
+            Debug Tokens
+          </button>
+        </div>
       </div>
     </div>
   );
