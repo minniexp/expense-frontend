@@ -53,6 +53,13 @@ const handler = NextAuth({
       }
     },
     async redirect({ url, baseUrl }) {
+      // Allow the redirect to respect the originally requested URL
+      // If the URL is within your app, redirect to that URL
+      if (url.startsWith(baseUrl)) {
+        return url;
+      }
+      
+      // For sign-ins without a specific redirect URL, go to summary
       return '/summary';
     },
     async jwt({ token, user }) {

@@ -58,38 +58,29 @@ export default function HomePage() {
     });
     
     // Only redirect if we have the auth_token cookie or a valid session
-    if (hasAuthToken || (status === 'authenticated' && session?.accessToken)) {
-      console.log("Redirecting to /summary with verified auth state");
-      setRedirectAttempted(true);
-      router.push('/summary');
+    if (!loading && ((hasAuthToken || hasSessionToken) || 
+        (status === 'authenticated' && session?.accessToken) || 
+        user)) {
+      // Don't hardcode the path, use a more dynamic approach
+      const lastAttemptedPath = localStorage.getItem('lastAttemptedPath') || '/summary';
+      console.log('Authentication confirmed, redirecting to:', lastAttemptedPath);
+      router.push(lastAttemptedPath);
+      localStorage.removeItem('lastAttemptedPath'); // Clear after use
     }
-  }, [sessionChecked, status, session, redirectAttempted, router]);
+  }, [sessionChecked, status, session, redirectAttempted, router, loading, user]);
 
   useEffect(() => {
     // Check for URL parameters that might indicate redirect reasons
     const url = new URL(window.location.href);
-    const redirectReason = url.searchParams.get('redirect_reason');
-    const redirectFrom = url.searchParams.get('from');
+    const redirectTo = url.searchParams.get('redirect_to');
     
-    if (redirectReason) {
-      console.log(`Redirect received from ${redirectFrom} due to: ${redirectReason}`);
+    if (redirectTo) {
+      // Store the path for after authentication
+      localStorage.setItem('lastAttemptedPath', redirectTo);
       
       // Remove parameters to prevent them from affecting future navigation
-      url.searchParams.delete('redirect_reason');
-      url.searchParams.delete('from');
-      
-      // Update browser URL without causing navigation
+      url.searchParams.delete('redirect_to');
       window.history.replaceState({}, '', url.toString());
-      
-      // Block redirect attempts if we just got redirected here
-      setRedirectAttempted(true);
-      
-      // After some timeout, allow redirects again
-      const timer = setTimeout(() => {
-        setRedirectAttempted(false);
-      }, 3000);
-      
-      return () => clearTimeout(timer);
     }
   }, []);
 

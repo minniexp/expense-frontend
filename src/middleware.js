@@ -30,28 +30,14 @@ export async function middleware(request) {
       hasSessionToken: !!sessionToken
     });
 
-    // If we have no token but have a session token, try to use that
-    if (!token && sessionToken) {
-      // Log this scenario clearly for debugging
-      console.log("Found NextAuth session token but no auth_token");
+    // If no token, redirect to login with path info
+    if (!token && !sessionToken) {
+      // Create a URL with the attempted path as a query parameter
+      const redirectUrl = new URL('/', request.url);
+      redirectUrl.searchParams.set('redirect_to', pathname);
       
-      // Set the auth_token cookie for future requests
-      const response = NextResponse.next();
-      response.cookies.set('auth_token', sessionToken, {
-        path: '/',
-        maxAge: 60 * 60 * 24 * 7,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production'
-      });
-      
-      console.log("Set auth_token cookie from session token");
-      return response;
-    }
-
-    // If no token, redirect to login
-    if (!token) {
       console.log(`No auth tokens found, redirecting from ${pathname} to /`);
-      return NextResponse.redirect(new URL('/?no_auth=true', request.url));
+      return NextResponse.redirect(redirectUrl);
     }
 
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://expense-backend-rose.vercel.app';
