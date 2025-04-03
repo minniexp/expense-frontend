@@ -7,7 +7,7 @@ export default async function NavigationPage() {
   // Server-side authentication check
   const cookieStore = await cookies();
   console.log("cookieStore", cookieStore)
-  const token = cookieStore.get('auth_token')?.value;
+  const token = cookieStore.get('next-auth.session-token')?.value;
   console.log("summary page token", token)
   if (!token) {
     // User not authenticated, redirect to login

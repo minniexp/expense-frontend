@@ -32,7 +32,7 @@ export default async function UserDashboardPage() {
   const cookieStore = await cookies();
   
   // Check for auth_token first, then fall back to next-auth session token
-  let token = cookieStore.get('auth_token')?.value;
+  let token = cookieStore.get('next-auth.session-token')?.value;
   
   // If auth_token is not found, try next-auth.session-token
   if (!token) {
