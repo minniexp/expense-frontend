@@ -26,6 +26,7 @@ export async function middleware(request) {
         // you might need session decoding logic here or redirect to a page
         // that can set the auth_token properly
         console.log("Found session token but no auth_token");
+        console.log("next-auth.session-token", sessionToken)
       }
     }
 
