@@ -5,7 +5,8 @@ import PayeeSummary from '@/components/PayeeSummary';
 export default async function NavigationPage() {
     console.log("summary page loading")
   // Server-side authentication check
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
+  console.log("cookieStore", cookieStore)
   const token = cookieStore.get('auth_token')?.value;
   console.log("summary page token", token)
   if (!token) {
