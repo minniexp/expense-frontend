@@ -17,18 +17,33 @@ export const AuthProvider = ({ children }) => {
   // Effect to sync with NextAuth session
   useEffect(() => {
     const syncWithSession = async () => {
-      console.log("syncWithSession")
+      console.log("syncWithSession");
       
-      if (status === 'authenticated' && session?.accessToken) {
-        console.log("session.accessToken", session.accessToken)
-        // Store the token from session in auth_token cookie
-        Cookies.set('auth_token', session.accessToken, { expires: 180 });
+      if (status === 'authenticated' && session) {
+        console.log("Session authenticated");
         
-        try {
-          await verifyToken(session.accessToken);
-          console.log("Token verified successfully");
-        } catch (error) {
-          console.error("Failed to verify token:", error);
+        // Try different paths to find the token
+        const token = session.accessToken || session.user?.token;
+        
+        if (token) {
+          console.log("Found token, setting auth_token cookie:", token.substring(0, 10) + "...");
+          
+          // Set the cookie with explicit domain and path
+          Cookies.set('auth_token', token, { 
+            expires: 180,
+            path: '/',
+            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production'
+          });
+          
+          try {
+            await verifyToken(token);
+            console.log("Token verified successfully");
+          } catch (error) {
+            console.error("Failed to verify token:", error);
+          }
+        } else {
+          console.error("No token found in session:", session);
         }
       } else if (status === 'unauthenticated') {
         // If explicitly unauthenticated, clear state

@@ -23,6 +23,7 @@ const handler = NextAuth({
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ email: profile.email }),
+          credentials: 'include'
         });
 
         console.log("signin res", res)
@@ -35,6 +36,8 @@ const handler = NextAuth({
 
 
         const data = await res.json();
+
+        console.log("signin data", data)
         
         if (!data.user || !data.user.isApproved) {
           return '/auth/error?error=not_approved';

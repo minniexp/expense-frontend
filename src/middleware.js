@@ -18,6 +18,17 @@ export async function middleware(request) {
     // Get auth token from cookies - check both possible tokens
     let token = request.cookies.get('auth_token')?.value;
 
+    // Also try next-auth session token
+    if (!token) {
+      const sessionToken = request.cookies.get('next-auth.session-token')?.value;
+      if (sessionToken) {
+        // If you have access to the session token but not the auth_token,
+        // you might need session decoding logic here or redirect to a page
+        // that can set the auth_token properly
+        console.log("Found session token but no auth_token");
+      }
+    }
+
     // If no token, redirect to login
     if (!token) {
       return NextResponse.redirect(new URL('/', request.url));
