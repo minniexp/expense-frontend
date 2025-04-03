@@ -2,21 +2,54 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import PayeeSummary from '@/components/PayeeSummary';
 
-export default async function NavigationPage() {
-    console.log("summary page loading")
+async function verifyUserToken(token) {
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+  
+  try {
+    const response = await fetch(`${backendUrl}/api/users/verify-token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ token }),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Token verification failed:', error);
+    return null;
+  }
+}
+
+export default async function SummaryPage() {
+  console.log("summary page loading");
+  
   // Server-side authentication check
   const cookieStore = await cookies();
-  console.log("cookieStore", cookieStore)
-  const token = cookieStore.get('next-auth.session-token')?.value;
-  console.log("summary page token", token)
+  
+  let token = cookieStore.get('auth_token')?.value;
   if (!token) {
-    // User not authenticated, redirect to login
-    // redirect('/');
+    token = cookieStore.get('next-auth.session-token')?.value;
+  }
+  
+  if (!token) {
+    console.log("No token found, redirecting to login");
+    redirect('/');
   }
 
-  // Middleware already handles the advanced access level check,
-  // but you could add additional server-side logic here if needed
-  
-  // Render the client component with navigation links
-  return <PayeeSummary />;
+  // Verify the token
+  const userData = await verifyUserToken(token);
+  if (!userData || !userData.user) {
+    console.log("Token verification failed, redirecting to login");
+    redirect('/');
+  }
+
+  // Render the component
+  return <PayeeSummary userData={userData} />;
 }

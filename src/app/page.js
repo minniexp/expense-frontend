@@ -59,9 +59,9 @@ export default function HomePage() {
     
     // Only redirect if we have the auth_token cookie or a valid session
     if (hasAuthToken || (status === 'authenticated' && session?.accessToken)) {
-      console.log("Redirecting to /user with verified auth state");
+      console.log("Redirecting to /summary with verified auth state");
       setRedirectAttempted(true);
-      router.push('/user');
+      router.push('/summary');
     }
   }, [sessionChecked, status, session, redirectAttempted, router]);
 

@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 const advancedRoutes = ['/my', '/return', '/add', '/navigation', '/teller', '/test'];
 
 // Define routes that can be accessed by both simple and advanced users
-const protectedRoutes = ['/user', ...advancedRoutes];
+const protectedRoutes = ['/user', '/summary', ...advancedRoutes];
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
@@ -100,5 +100,6 @@ export const config = {
     '/navigation/:path*',
     '/teller/:path*',
     '/test/:path*',
+    '/summary/:path*',
   ],
 }; 
