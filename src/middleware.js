@@ -22,6 +22,8 @@ export async function middleware(request) {
     if (!token) {
       const sessionToken = request.cookies.get('next-auth.session-token')?.value;
       if (sessionToken) {
+        token = sessionToken
+        Cookies.set('auth_token', sessionToken)
         // If you have access to the session token but not the auth_token,
         // you might need session decoding logic here or redirect to a page
         // that can set the auth_token properly
