@@ -11,6 +11,11 @@ const handler = NextAuth({
   callbacks: {
     async signIn({ user, account, profile }) {
       try {
+        console.log("signIn callback")
+
+        if(profile){
+            console.log("google oauth passed")
+        }
         // Check if user is allowed
         const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/fetch-by-email`, {
           method: 'POST',
@@ -20,10 +25,14 @@ const handler = NextAuth({
           body: JSON.stringify({ email: profile.email }),
         });
 
+        console.log("signin res", res)
+
         if (!res.ok) {
           console.error('Error validating user:', await res.text());
           return '/auth/error?error=validation_failed';
         }
+
+
 
         const data = await res.json();
         

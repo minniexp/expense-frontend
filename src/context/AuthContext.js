@@ -17,9 +17,10 @@ export const AuthProvider = ({ children }) => {
   // Effect to sync with NextAuth session
   useEffect(() => {
     const syncWithSession = async () => {
+      console.log("syncWithSession")
       
       if (status === 'authenticated' && session?.accessToken) {
-        
+        console.log("session.accessToken", session.accessToken)
         // Store the token from session in auth_token cookie
         Cookies.set('auth_token', session.accessToken, { expires: 180 });
         
