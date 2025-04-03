@@ -65,10 +65,16 @@ const handler = NextAuth({
       return token;
     },
     async session({ session, token }) {
-      // Pass token to client
-      console.log("session callback - token exists:", !!token.accessToken);
+      // IMPORTANT: Make sure this is correctly saving the token
+      console.log("Session callback with token:", token);
+      
+      // Make sure the accessToken is being set correctly
       session.accessToken = token.accessToken;
       session.accessLevel = token.accessLevel;
+
+      console.log("accessToken", session.accessToken)
+      console.log("accessLevel", session.accessLevel)
+      console.log("session", session)
       return session;
     },
   },

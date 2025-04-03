@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { signIn, useSession } from 'next-auth/react';
+import { signIn, useSession, getSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Cookies from 'js-cookie';
@@ -11,55 +11,59 @@ export default function HomePage() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const [redirectAttempted, setRedirectAttempted] = useState(false);
-  const [redirectBlocked, setRedirectBlocked] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
+  // This effect handles the NextAuth session and cookie synchronization
   useEffect(() => {
-    // Check for both types of tokens, just like middleware does
+    const syncSessionWithCookies = async () => {
+      if (status === 'loading') return;
+      
+      console.log("Session state:", status);
+      console.log("Session data:", session);
+      
+      // If we're authenticated via NextAuth but missing the auth_token cookie
+      if (status === 'authenticated' && session?.accessToken && !Cookies.get('auth_token')) {
+        console.log("Setting auth_token from session", session.accessToken.substring(0, 10) + "...");
+        Cookies.set('auth_token', session.accessToken, { 
+          path: '/',
+          expires: 7, // 7 days
+          sameSite: 'lax'
+        });
+        
+        // Give time for the cookie to be set
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      
+      setSessionChecked(true);
+    };
+    
+    syncSessionWithCookies();
+  }, [status, session]);
+
+  // This effect handles the redirects
+  useEffect(() => {
+    if (!sessionChecked) return;
+    
+    if (redirectAttempted) return;
+    
     const hasAuthToken = !!Cookies.get('auth_token');
     const hasSessionToken = !!Cookies.get('next-auth.session-token');
     
-    console.log('Auth state check:', { 
-      status, 
-      hasAuthToken, 
+    console.log("Redirect check:", {
+      sessionChecked,
+      hasAuthToken,
       hasSessionToken,
-      sessionAccessToken: session?.accessToken,
-      user,
-      redirectAttempted,
-      redirectBlocked
+      status,
+      redirectAttempted
     });
     
-    // Prevent infinite redirect loops
-    if (redirectAttempted || redirectBlocked) {
-      return;
-    }
-    
-    // Only redirect if we're sure authentication is complete
-    if (!loading && status !== 'loading' && ((hasAuthToken || hasSessionToken) || 
-        (status === 'authenticated' && session?.accessToken) || 
-        user)) {
-      
-      console.log('Authentication confirmed, scheduling redirect to /user');
+    // Only redirect if we have the auth_token cookie or a valid session
+    if (hasAuthToken || (status === 'authenticated' && session?.accessToken)) {
+      console.log("Redirecting to /user with verified auth state");
       setRedirectAttempted(true);
-      
-      // Add a slight delay to prevent immediate redirects
-      const redirectTimer = setTimeout(() => {
-        console.log('Executing redirect to /user');
-        router.push('/user');
-      }, 500);
-      
-      return () => clearTimeout(redirectTimer);
+      router.push('/user');
     }
-    
-    // Add a timeout to prevent repeated redirect attempts in case of issues
-    const blockTimer = setTimeout(() => {
-      if (!redirectAttempted) {
-        console.log('Blocking further redirect attempts');
-        setRedirectBlocked(true);
-      }
-    }, 5000);
-    
-    return () => clearTimeout(blockTimer);
-  }, [status, session, router, user, loading, redirectAttempted, redirectBlocked]);
+  }, [sessionChecked, status, session, redirectAttempted, router]);
 
   useEffect(() => {
     // Check for URL parameters that might indicate redirect reasons
@@ -78,11 +82,11 @@ export default function HomePage() {
       window.history.replaceState({}, '', url.toString());
       
       // Block redirect attempts if we just got redirected here
-      setRedirectBlocked(true);
+      setRedirectAttempted(true);
       
       // After some timeout, allow redirects again
       const timer = setTimeout(() => {
-        setRedirectBlocked(false);
+        setRedirectAttempted(false);
       }, 3000);
       
       return () => clearTimeout(timer);

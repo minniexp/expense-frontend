@@ -9,8 +9,8 @@ const protectedRoutes = ['/user', ...advancedRoutes];
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
   
-  // Don't run middleware for the home page to prevent loops
-  if (pathname === '/') {
+  // Don't run middleware for the home page or API routes
+  if (pathname === '/' || pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
   
@@ -30,31 +30,28 @@ export async function middleware(request) {
       hasSessionToken: !!sessionToken
     });
 
-    // Also try next-auth session token
+    // If we have no token but have a session token, try to use that
     if (!token && sessionToken) {
-      token = sessionToken;
+      // Log this scenario clearly for debugging
+      console.log("Found NextAuth session token but no auth_token");
       
-      // Set the auth_token cookie
+      // Set the auth_token cookie for future requests
       const response = NextResponse.next();
       response.cookies.set('auth_token', sessionToken, {
         path: '/',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-        sameSite: 'lax'
+        maxAge: 60 * 60 * 24 * 7,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production'
       });
       
-      console.log("Setting auth_token from session token");
+      console.log("Set auth_token cookie from session token");
       return response;
     }
 
     // If no token, redirect to login
     if (!token) {
-      // Add a query parameter to indicate why the redirect happened
-      const redirectUrl = new URL('/', request.url);
-      redirectUrl.searchParams.set('redirect_reason', 'no_token');
-      redirectUrl.searchParams.set('from', pathname);
-      
-      console.log(`No tokens found for ${pathname}, redirecting to /`);
-      return NextResponse.redirect(redirectUrl);
+      console.log(`No auth tokens found, redirecting from ${pathname} to /`);
+      return NextResponse.redirect(new URL('/?no_auth=true', request.url));
     }
 
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://expense-backend-rose.vercel.app';

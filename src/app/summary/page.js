@@ -11,7 +11,7 @@ export default async function NavigationPage() {
   console.log("summary page token", token)
   if (!token) {
     // User not authenticated, redirect to login
-    redirect('/');
+    // redirect('/');
   }
 
   // Middleware already handles the advanced access level check,
