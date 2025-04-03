@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import NavigationLinks from '@/components/NavigationLinks';
+import PayeeSummary from '@/components/PayeeSummary';
 
 export default async function NavigationPage() {
   // Server-side authentication check
@@ -16,5 +16,5 @@ export default async function NavigationPage() {
   // but you could add additional server-side logic here if needed
   
   // Render the client component with navigation links
-  return <NavigationLinks />;
+  return <PayeeSummary />;
 }
