@@ -39,6 +39,9 @@ export default async function UserDashboardPage() {
     token = cookieStore.get('next-auth.session-token')?.value;
   }
 
+  console.log("token", token)
+  console.log('toekn not found', !token)
+  console.log('cookieStore', cookieStore)
   // If no token at all, redirect to sign in
   if (!token) {
     redirect('/');
