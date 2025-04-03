@@ -8,6 +8,7 @@ const protectedRoutes = ['/user', ...advancedRoutes];
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
+  console.log(`Middleware running for path: ${pathname}`);
 
   // Check if the route is protected
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
@@ -16,28 +17,32 @@ export async function middleware(request) {
   if (isProtectedRoute) {
     // Get auth token from cookies - check both possible tokens
     let token = request.cookies.get('auth_token')?.value;
+    let sessionToken = request.cookies.get('next-auth.session-token')?.value;
+    
+    console.log(`Cookie check for ${pathname}:`, {
+      hasAuthToken: !!token,
+      hasSessionToken: !!sessionToken
+    });
 
     // Also try next-auth session token
-    if (!token) {
-      const sessionToken = request.cookies.get('next-auth.session-token')?.value;
-      if (sessionToken) {
-        token = sessionToken;
-        
-        // Middleware can set cookies using NextResponse
-        const response = NextResponse.next();
-        response.cookies.set('auth_token', sessionToken, {
-          path: '/',
-          maxAge: 60 * 60 * 24 * 7, // 7 days
-          sameSite: 'lax'
-        });
-        
-        console.log("Found session token but no auth_token. Setting auth_token cookie.");
-        return response;
-      }
+    if (!token && sessionToken) {
+      token = sessionToken;
+      
+      // Set the auth_token cookie
+      const response = NextResponse.next();
+      response.cookies.set('auth_token', sessionToken, {
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        sameSite: 'lax'
+      });
+      
+      console.log("Setting auth_token from session token");
+      return response;
     }
 
     // If no token, redirect to login
     if (!token) {
+      console.log(`No tokens found for ${pathname}, redirecting to /`);
       return NextResponse.redirect(new URL('/', request.url));
     }
 
@@ -74,9 +79,7 @@ export async function middleware(request) {
     }
   }
 
-  console.log("Middleware complete");
-
-  // Continue with the request
+  console.log("Middleware complete for", pathname);
   return NextResponse.next();
 }
 

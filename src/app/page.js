@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import Cookies from 'js-cookie';
 
 export default function HomePage() {
   const { data: session, status } = useSession();
@@ -11,11 +12,26 @@ export default function HomePage() {
   const { user, login, loading } = useAuth();
 
   useEffect(() => {
-    // If already authenticated, redirect to user page
-    if ((status === 'authenticated' && session?.accessToken) || user) {
+    // Check for both types of tokens, just like middleware does
+    const hasAuthToken = !!Cookies.get('auth_token');
+    const hasSessionToken = !!Cookies.get('next-auth.session-token');
+    
+    console.log('Auth state check:', { 
+      status, 
+      hasAuthToken, 
+      hasSessionToken,
+      sessionAccessToken: session?.accessToken,
+      user
+    });
+    
+    // Only redirect if we're sure authentication is complete
+    if (!loading && ((hasAuthToken || hasSessionToken) || 
+        (status === 'authenticated' && session?.accessToken) || 
+        user)) {
+      console.log('Authentication confirmed, redirecting to /user');
       router.push('/user');
     }
-  }, [status, session, router, user]);
+  }, [status, session, router, user, loading]);
 
   const handleSignIn = async () => {
     await signIn('google');

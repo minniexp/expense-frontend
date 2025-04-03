@@ -11,7 +11,7 @@ const handler = NextAuth({
   callbacks: {
     async signIn({ user, account, profile }) {
       try {
-        console.log("signIn callback")
+        console.log("signIn callback", { user, profile: profile?.email });
 
         if(profile){
             console.log("google oauth passed")
@@ -33,8 +33,6 @@ const handler = NextAuth({
           return '/auth/error?error=validation_failed';
         }
 
-
-
         const data = await res.json();
 
         console.log("signin data", data)
@@ -43,6 +41,8 @@ const handler = NextAuth({
           return '/auth/error?error=not_approved';
         }
 
+        console.log("Token received from backend:", data.token ? "YES" : "NO");
+        
         // Store the token in the user session
         user.token = data.token;
         user.accessLevel = data.user.accessLevel;
@@ -58,6 +58,7 @@ const handler = NextAuth({
     async jwt({ token, user }) {
       // Pass token from OAuth to JWT
       if (user) {
+        console.log("jwt callback - setting token from user");
         token.accessToken = user.token;
         token.accessLevel = user.accessLevel;
       }
@@ -65,6 +66,7 @@ const handler = NextAuth({
     },
     async session({ session, token }) {
       // Pass token to client
+      console.log("session callback - token exists:", !!token.accessToken);
       session.accessToken = token.accessToken;
       session.accessLevel = token.accessLevel;
       return session;
