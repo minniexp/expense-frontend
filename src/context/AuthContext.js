@@ -55,6 +55,10 @@ export const AuthProvider = ({ children }) => {
           setLoading(false);
         }
       }
+
+      console.log("Session status:", status);
+      console.log("Session data:", session);
+      console.log("Cookies:", document.cookie);
     };
 
     syncWithSession();
