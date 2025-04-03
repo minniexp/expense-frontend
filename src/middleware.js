@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
 // Define routes that require advanced access
 const advancedRoutes = ['/my', '/return', '/add', '/navigation', '/teller', '/test'];
@@ -22,13 +21,18 @@ export async function middleware(request) {
     if (!token) {
       const sessionToken = request.cookies.get('next-auth.session-token')?.value;
       if (sessionToken) {
-        token = sessionToken
-        Cookies.set('auth_token', sessionToken)
-        // If you have access to the session token but not the auth_token,
-        // you might need session decoding logic here or redirect to a page
-        // that can set the auth_token properly
-        console.log("Found session token but no auth_token");
-        console.log("next-auth.session-token", sessionToken)
+        token = sessionToken;
+        
+        // Middleware can set cookies using NextResponse
+        const response = NextResponse.next();
+        response.cookies.set('auth_token', sessionToken, {
+          path: '/',
+          maxAge: 60 * 60 * 24 * 7, // 7 days
+          sameSite: 'lax'
+        });
+        
+        console.log("Found session token but no auth_token. Setting auth_token cookie.");
+        return response;
       }
     }
 
