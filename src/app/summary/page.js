@@ -27,6 +27,31 @@ async function verifyUserToken(token) {
   }
 }
 
+async function fetchReturnsServerSide(token) {
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+  
+  try {
+    const response = await fetch(`${backendUrl}/api/returns`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch returns:', response.status);
+      return [];
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error fetching returns:', error);
+    return [];
+  }
+}
+
 export default async function SummaryPage() {
   console.log("summary page loading");
   
@@ -50,6 +75,9 @@ export default async function SummaryPage() {
     redirect('/');
   }
 
-  // Render the component
-  return <PayeeSummary userData={userData} />;
+  // Fetch returns server-side to bypass CORS
+  const returnsData = await fetchReturnsServerSide(token);
+
+  // Render the component with both user data and returns
+  return <PayeeSummary userData={userData} returnsData={returnsData} />;
 }

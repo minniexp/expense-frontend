@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { monthToReturnIdMap } from '@/utils/constants';
 import { fetchAvailableReturns, fetchMongoDBTransactions, fetchTransactionsByIds } from '@/services/api';
-export default function HomePage() {
+export default function PayeeSummary() {
   const router = useRouter();
   const [transactions, setTransactions] = useState([]);
   const [monthlyTransactions, setMonthlyTransactions] = useState({
