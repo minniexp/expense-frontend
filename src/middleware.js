@@ -37,10 +37,13 @@ export async function middleware(request) {
       return NextResponse.redirect(new URL('/', request.url));
     }
 
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://expense-backend-rose.vercel.app';
+    
+
     if (isAdvancedRoute) {
       try {
         // For advanced routes, verify the user has advanced access
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/verify-token`, {
+        const response = await fetch(`${backendUrl}/api/users/verify-token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
