@@ -68,12 +68,12 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
   const pointsOptions = POINTS_OPTIONS;
 
   const handleSelectAll = () => {
-    if (selectedTransactions.size === transactions.length) {
-      // If all are selected, clear selection
+    if (selectedTransactions.size === filteredTransactions.length) {
+      // If all filtered transactions are selected, clear selection
       setSelectedTransactions(new Set());
     } else {
-      // Select all transactions
-      setSelectedTransactions(new Set(transactions.map(t => t._id)));
+      // Select all filtered transactions
+      setSelectedTransactions(new Set(filteredTransactions.map(t => t._id)));
     }
   };
 
@@ -81,13 +81,20 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
     setSelectedTransactions(prev => {
       const newSelected = new Set(prev);
       if (newSelected.has(transaction._id)) {
+        console.log('Removing transaction:', transaction._id);
         newSelected.delete(transaction._id);
       } else {
+        console.log('Adding transaction:', transaction._id);
         newSelected.add(transaction._id);
       }
       return newSelected;
     });
   };
+
+  // Add effect to monitor selectedTransactions changes
+  useEffect(() => {
+    console.log('Selected transactions:', Array.from(selectedTransactions));
+  }, [selectedTransactions]);
 
   // Add cell edit handler
   const handleCellEdit = (transactionId, field, value) => {
@@ -874,7 +881,7 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
 
             <button
               onClick={handleUpdateSelectedTransactions}
-              disabled={loading || selectedTransactions.size === 0}
+              disabled={selectedTransactions.size === 0}
               className={`
                 font-bold py-2 px-4 rounded transition-colors duration-200
                 ${selectedTransactions.size === 0
@@ -883,7 +890,7 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
                 }
               `}
             >
-              {loading ? 'Updating...' : `Update Selected (${selectedTransactions.size})`}
+              {selectedTransactions.size === 0 ? 'Update' : `Update Selected (${selectedTransactions.size})`}
             </button>
             
             <button
