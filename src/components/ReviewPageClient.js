@@ -958,7 +958,6 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
             <div className="space-y-1">
               {CATEGORIES.map((category, index) => {
                 const amount = getSelectedMonthSummary()[category] || 0;
-                if (amount === 0) return null; // Skip categories with 0 amount
                 return (
                   <div 
                     key={category} 
