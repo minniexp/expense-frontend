@@ -396,7 +396,11 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
       const affectedReturns = new Set();
 
       // First, update the transactions
-      const response = await updateManyTransactions(selectedTransactionData)
+      const response = await updateManyTransactions(selectedTransactionData);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to update transactions: ${response.statusText}`);
+      }
 
       const result = await response.json();
       
@@ -422,13 +426,20 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
         }
       }
       
-      if (result.successful.length > 0) {
+      if (result.successful?.length > 0) {
         alert(`Successfully updated ${result.successful.length} transactions${affectedReturns.size > 0 ? ` and ${affectedReturns.size} return documents` : ''}`);
-        await fetchMongoDBTransactions(); // Refresh the transactions list
-        await fetchAvailableReturns(); // Refresh available returns
+        
+        // Refresh data
+        const updatedTransactions = await fetchMongoDBTransactions();
+        setTransactions(updatedTransactions);
+        
+        if (affectedReturns.size > 0) {
+          const updatedReturns = await fetchAvailableReturns();
+          setAvailableReturns(updatedReturns);
+        }
       }
 
-      if (result.failed.length > 0) {
+      if (result.failed?.length > 0) {
         alert(`Failed to update ${result.failed.length} transactions`);
         console.error('Failed updates:', result.failed);
       }

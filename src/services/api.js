@@ -1,4 +1,5 @@
 import axios from 'axios';
+import Cookies from 'js-cookie';
 const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 const api = axios.create({
@@ -405,35 +406,26 @@ const getSafeToken = (serverToken = null) => {
 
 /**
  * Update multiple transactions at once
- * @param {Array} transactionData - Array of transaction objects to update
+ * @param {Array} transactions - Array of transaction objects to update
  * @returns {Promise} - Response from the API
  */
-export const updateManyTransactions = async (transactionData, serverToken = null) => {
-  try {
-    const token = getSafeToken(serverToken);
-    const headers = { 'Content-Type': 'application/json' };
-    
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${backendUrl}/api/transactions/update-many`, {
-      method: 'PUT',
-      headers,
-      body: JSON.stringify(transactionData),
-      credentials: 'include'
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to update transactions');
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('API Error:', error);
-    throw error;
+export const updateManyTransactions = async (transactions) => {
+  const token = Cookies.get('auth_token');
+  if (!token) {
+    throw new Error('No authentication token found');
   }
+
+  const response = await fetch(`${backendUrl}/api/transactions/update-many`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ transactions }),
+    credentials: 'include'
+  });
+
+  return response; // Return the response object to handle status in the component
 };
 
 /**
