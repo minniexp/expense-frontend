@@ -410,10 +410,19 @@ const getSafeToken = (serverToken = null) => {
  * @returns {Promise} - Response from the API
  */
 export const updateManyTransactions = async (transactions) => {
+
+  console.log("updateManyTransactions");  
   const token = Cookies.get('auth_token');
   if (!token) {
+    token = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth_token='))
+    ?.split('=')[1];
+
     throw new Error('No authentication token found');
   }
+
+  console.log("token", token);
 
   const response = await fetch(`${backendUrl}/api/transactions/update-many`, {
     method: 'PUT',

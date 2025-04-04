@@ -373,6 +373,9 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
   };
 
   const handleUpdateSelectedTransactions = async () => {
+    console.log("handleUpdateSelectedTransactions");
+    console.log("selectedTransactions", selectedTransactions);
+
     if (selectedTransactions.size === 0) {
       alert('Please select transactions to update');
       return;
@@ -395,9 +398,10 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
       // Track return documents that need updates
       const affectedReturns = new Set();
 
+      console.log("calling updateManyTransactions");
       // First, update the transactions
       const response = await updateManyTransactions(selectedTransactionData);
-      
+      console.log("updateManyTransactions response", response);
       if (!response.ok) {
         throw new Error(`Failed to update transactions: ${response.statusText}`);
       }
