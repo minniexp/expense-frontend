@@ -24,6 +24,14 @@ export default function NavigationLinks() {
           <span className="text-xl">→</span>
         </Link>
 
+        <Link 
+          href="/summary" 
+          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-between"
+        >
+          <span>Parent Summary</span>
+          <span className="text-xl">→</span>
+        </Link>
+
         {/* <Link 
           href="/test" 
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-between"
