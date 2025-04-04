@@ -57,6 +57,7 @@ export async function middleware(request) {
         });
 
         if (!response.ok) {
+          console.error('Token verification failed:', response.status);
           return NextResponse.redirect(new URL('/', request.url));
         }
 
