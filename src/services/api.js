@@ -410,7 +410,6 @@ const getSafeToken = (serverToken = null) => {
  * @returns {Promise} - Response from the API
  */
 export const updateManyTransactions = async (transactions) => {
-
   console.log("updateManyTransactions");  
   const token = Cookies.get('auth_token');
   console.log("token from auth-token cookie", token);
@@ -431,7 +430,7 @@ export const updateManyTransactions = async (transactions) => {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     },
-    body: JSON.stringify({ transactions }),
+    body: JSON.stringify(transactions),
     credentials: 'include'
   });
 
