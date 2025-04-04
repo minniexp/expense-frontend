@@ -405,6 +405,8 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
       // Track return documents that need updates
       const affectedReturns = new Set();
 
+      console.log("selectedTransactionData", typeof selectedTransactionData);
+      console.log("selectedTransactionData is array: ", Array.isArray(selectedTransactionData));
       console.log("calling updateManyTransactions");
       // First, update the transactions
       const response = await updateManyTransactions(selectedTransactionData);
@@ -455,7 +457,7 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
         console.error('Failed updates:', result.failed);
       }
     } catch (error) {
-      console.error('Error updating transactions:', error);
+      console.error('Error updating transactions:', error, "message is: ", error.message);
       alert(`Error updating transactions: ${error.message}`);
     } finally {
       setLoading(false);

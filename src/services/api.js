@@ -413,6 +413,7 @@ export const updateManyTransactions = async (transactions) => {
 
   console.log("updateManyTransactions");  
   const token = Cookies.get('auth_token');
+  console.log("token from auth-token cookie", token);
   if (!token) {
     token = document.cookie
     .split('; ')
