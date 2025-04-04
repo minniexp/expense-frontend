@@ -17,17 +17,13 @@ export const AuthProvider = ({ children }) => {
   // Effect to sync with NextAuth session
   useEffect(() => {
     const syncWithSession = async () => {
-      console.log("syncWithSession");
       
       if (status === 'authenticated' && session) {
-        console.log("Session authenticated");
         
         // Try different paths to find the token
         const token = session.accessToken || session.user?.token;
         
-        if (token) {
-          console.log("Found token, setting auth_token cookie:", token.substring(0, 10) + "...");
-          
+        if (token) {          
           // Set the cookie with explicit domain and path
           Cookies.set('auth_token', token, { 
             expires: 180,
@@ -43,7 +39,6 @@ export const AuthProvider = ({ children }) => {
             console.error("Failed to verify token:", error);
           }
         } else {
-          console.error("No token found in session:", session);
         }
       } else if (status === 'unauthenticated') {
         // If explicitly unauthenticated, clear state
@@ -70,10 +65,6 @@ export const AuthProvider = ({ children }) => {
           setLoading(false);
         }
       }
-
-      console.log("Session status:", status);
-      console.log("Session data:", session);
-      console.log("Cookies:", document.cookie);
     };
 
     syncWithSession();
@@ -115,7 +106,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const verifyToken = async (token) => {
-    console.log("verifyToken called in Authcontext frontend")
     try {
       const response = await fetch(`${backendUrl}/api/users/verify-token`, {
         method: 'POST',

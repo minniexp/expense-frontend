@@ -11,11 +11,6 @@ const handler = NextAuth({
   callbacks: {
     async signIn({ user, account, profile }) {
       try {
-        console.log("signIn callback", { user, profile: profile?.email });
-
-        if(profile){
-            console.log("google oauth passed")
-        }
         // Check if user is allowed
         const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/fetch-by-email`, {
           method: 'POST',
@@ -26,22 +21,16 @@ const handler = NextAuth({
           credentials: 'include'
         });
 
-        console.log("signin res", res)
-
         if (!res.ok) {
           console.error('Error validating user:', await res.text());
           return '/auth/error?error=validation_failed';
         }
 
         const data = await res.json();
-
-        console.log("signin data", data)
         
         if (!data.user || !data.user.isApproved) {
           return '/auth/error?error=not_approved';
         }
-
-        console.log("Token received from backend:", data.token ? "YES" : "NO");
         
         // Store the token in the user session
         user.token = data.token;
@@ -73,15 +62,11 @@ const handler = NextAuth({
     },
     async session({ session, token }) {
       // IMPORTANT: Make sure this is correctly saving the token
-      console.log("Session callback with token:", token);
       
       // Make sure the accessToken is being set correctly
       session.accessToken = token.accessToken;
       session.accessLevel = token.accessLevel;
 
-      console.log("accessToken", session.accessToken)
-      console.log("accessLevel", session.accessLevel)
-      console.log("session", session)
       return session;
     },
   },

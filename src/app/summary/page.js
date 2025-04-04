@@ -53,8 +53,6 @@ async function fetchReturnsServerSide(token) {
 }
 
 export default async function SummaryPage() {
-  console.log("summary page loading");
-  
   // Server-side authentication check
   const cookieStore = await cookies();
   

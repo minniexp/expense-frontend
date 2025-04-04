@@ -30,7 +30,6 @@ async function verifyUserToken(token) {
 export default async function UserDashboardPage() {
   // Get the token from cookies using the new pattern
   const cookieStore = await cookies();
-  console.log("cookieStore", cookieStore)
   // FIX: Check for auth_token first, then fall back to next-auth session token
   let token = cookieStore.get('auth_token')?.value;
   
@@ -39,9 +38,6 @@ export default async function UserDashboardPage() {
     token = cookieStore.get('next-auth.session-token')?.value;
   }
 
-  console.log("token", token)
-  console.log('toekn not found', !token)
-  console.log('cookieStore', cookieStore)
   // If no token at all, redirect to sign in
   if (!token) {
     redirect('/');

@@ -73,7 +73,6 @@ export default function PayeeSummary() {
           const monthlyReturn = allReturns.find(r => r._id === returnId);
           
           if (monthlyReturn) {
-            console.log(`Found return document for month ${month}:`, monthlyReturn);
             
             // Store the return document
             monthReturnsData[month] = monthlyReturn;

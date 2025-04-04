@@ -18,12 +18,8 @@ export default function HomePage() {
     const syncSessionWithCookies = async () => {
       if (status === 'loading') return;
       
-      console.log("Session state:", status);
-      console.log("Session data:", session);
-      
       // If we're authenticated via NextAuth but missing the auth_token cookie
       if (status === 'authenticated' && session?.accessToken && !Cookies.get('auth_token')) {
-        console.log("Setting auth_token from session", session.accessToken.substring(0, 10) + "...");
         Cookies.set('auth_token', session.accessToken, { 
           path: '/',
           expires: 7, // 7 days
@@ -48,22 +44,13 @@ export default function HomePage() {
     
     const hasAuthToken = !!Cookies.get('auth_token');
     const hasSessionToken = !!Cookies.get('next-auth.session-token');
-    
-    console.log("Redirect check:", {
-      sessionChecked,
-      hasAuthToken,
-      hasSessionToken,
-      status,
-      redirectAttempted
-    });
-    
+        
     // Only redirect if we have the auth_token cookie or a valid session
     if (!loading && ((hasAuthToken || hasSessionToken) || 
         (status === 'authenticated' && session?.accessToken) || 
         user)) {
       // Don't hardcode the path, use a more dynamic approach
       const lastAttemptedPath = localStorage.getItem('lastAttemptedPath') || '/summary';
-      console.log('Authentication confirmed, redirecting to:', lastAttemptedPath);
       router.push(lastAttemptedPath);
       localStorage.removeItem('lastAttemptedPath'); // Clear after use
     }
@@ -84,17 +71,6 @@ export default function HomePage() {
     }
   }, []);
 
-  const handleSignIn = async () => {
-    await signIn('google');
-  };
-
-  const logTokenDebug = () => {
-    console.log('Current tokens:');
-    console.log('auth_token:', Cookies.get('auth_token'));
-    console.log('next-auth.session-token:', Cookies.get('next-auth.session-token'));
-    console.log('Authorization header would be:', Cookies.get('auth_token') ? 
-      `Bearer ${Cookies.get('auth_token')}` : 'None');
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -105,7 +81,7 @@ export default function HomePage() {
         </p>
         
         <button
-          onClick={handleSignIn}
+          onClick={() => signIn('google')}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg flex items-center justify-center gap-3"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -116,30 +92,7 @@ export default function HomePage() {
           </svg>
           Sign in with Google
         </button>
-
-        <div className="mt-4">
-          <button 
-            onClick={logTokenDebug}
-            className="text-gray-400 text-sm hover:text-white"
-          >
-            Debug Tokens
-          </button>
-        </div>
       </div>
-    </div>
-  );
-}
-
-export function SignInPage() {
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Sign In</h1>
-      <button
-        onClick={() => signIn('google')}
-        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-      >
-        Sign in with Google
-      </button>
     </div>
   );
 }

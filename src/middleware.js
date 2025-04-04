@@ -24,11 +24,6 @@ export async function middleware(request) {
     // Get auth token from cookies - check both possible tokens
     let token = request.cookies.get('auth_token')?.value;
     let sessionToken = request.cookies.get('next-auth.session-token')?.value;
-    
-    console.log(`Cookie check for ${pathname}:`, {
-      hasAuthToken: !!token,
-      hasSessionToken: !!sessionToken
-    });
 
     // If no token, redirect to login with path info
     if (!token && !sessionToken) {
