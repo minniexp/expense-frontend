@@ -123,12 +123,13 @@ export const AuthProvider = ({ children }) => {
         if (response.status === 401) {
           // Token expired or invalid
           Cookies.remove('auth_token');
+          router.push('/');
           throw new Error('Session expired. Please log in again.');
         } else if (response.status === 404) {
-          // User not found
+          router.push('/');
           throw new Error('User not found');
         } else if (response.status === 403) {
-          // User not approved
+          router.push('/auth/error?error=not_approved');
           throw new Error('Your account is not approved');
         } else {
           throw new Error(error.error || 'An error occurred');
@@ -137,6 +138,10 @@ export const AuthProvider = ({ children }) => {
 
       const data = await response.json();
       setUser(data.user);
+      // After successful verification, redirect to summary
+      if (window.location.pathname === '/') {
+        router.push('/summary');
+      }
       return data;
     } catch (error) {
       console.error('Token verification failed:', error);

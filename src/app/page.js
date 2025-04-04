@@ -18,7 +18,6 @@ export default function HomePage() {
     const syncSessionWithCookies = async () => {
       if (status === 'loading') return;
       
-      // If we're authenticated via NextAuth but missing the auth_token cookie
       if (status === 'authenticated' && session?.accessToken && !Cookies.get('auth_token')) {
         Cookies.set('auth_token', session.accessToken, { 
           path: '/',
@@ -38,9 +37,7 @@ export default function HomePage() {
 
   // This effect handles the redirects
   useEffect(() => {
-    if (!sessionChecked) return;
-    
-    if (redirectAttempted) return;
+    if (!sessionChecked || redirectAttempted) return;
     
     const hasAuthToken = !!Cookies.get('auth_token');
     const hasSessionToken = !!Cookies.get('next-auth.session-token');
@@ -49,10 +46,9 @@ export default function HomePage() {
     if (!loading && ((hasAuthToken || hasSessionToken) || 
         (status === 'authenticated' && session?.accessToken) || 
         user)) {
-      // Don't hardcode the path, use a more dynamic approach
-      const lastAttemptedPath = localStorage.getItem('lastAttemptedPath') || '/summary';
-      router.push(lastAttemptedPath);
-      localStorage.removeItem('lastAttemptedPath'); // Clear after use
+      console.log('Authentication confirmed, redirecting to summary');
+      setRedirectAttempted(true);
+      router.push('/summary');
     }
   }, [sessionChecked, status, session, redirectAttempted, router, loading, user]);
 

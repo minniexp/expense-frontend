@@ -333,36 +333,6 @@ export default function PayeeSummary() {
           </div>
         )}
       </div>
-
-      <div className="mt-8 p-4 bg-gray-800 rounded-lg">
-        <h3 className="text-white font-bold mb-2">Debug Navigation</h3>
-        <div className="flex flex-wrap gap-2">
-          <button 
-            onClick={() => router.push('/user')}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded"
-          >
-            Go to User Page
-          </button>
-          <button 
-            onClick={() => router.push('/navigation')}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded"
-          >
-            Go to Navigation Page
-          </button>
-          <button 
-            onClick={() => router.push('/my')}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded"
-          >
-            Go to My Page
-          </button>
-          <button 
-            onClick={() => router.push('/teller')}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded"
-          >
-            Go to Teller Page
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

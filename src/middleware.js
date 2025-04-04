@@ -25,13 +25,12 @@ export async function middleware(request) {
     let token = request.cookies.get('auth_token')?.value;
     let sessionToken = request.cookies.get('next-auth.session-token')?.value;
 
-    // If no token, redirect to login with path info
     if (!token && !sessionToken) {
-      // Create a URL with the attempted path as a query parameter
+      // Store the attempted path, but default to /summary for the login page
       const redirectUrl = new URL('/', request.url);
-      redirectUrl.searchParams.set('redirect_to', pathname);
+      redirectUrl.searchParams.set('redirect_to', '/summary');
       
-      console.log(`No auth tokens found, redirecting from ${pathname} to /`);
+      console.log(`No auth tokens found, redirecting from ${pathname} to /summary`);
       return NextResponse.redirect(redirectUrl);
     }
 
