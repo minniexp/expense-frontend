@@ -29,6 +29,12 @@ export default function PayeeSummary() {
     9: 'September', 10: 'October', 11: 'November', 12: 'December'
   };
 
+  const formatAmount = (amount) => {
+    if (amount >= 1000) {
+      return `$${(amount / 1000).toFixed(1)}k`;
+    }
+    return `$${amount.toFixed(2)}`;
+  };
 
   useEffect(() => {
     fetchData();
@@ -149,7 +155,7 @@ export default function PayeeSummary() {
       {/* Section 1: Summary */}
       <div className="mb-12 bg-gray-800 p-6 rounded-lg">
         <h2 className="text-xl font-bold mb-4 text-white">Monthly Summary</h2>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {Object.entries(monthlySummary).map(([month, total]) => (
             <div 
               key={month} 
@@ -158,18 +164,40 @@ export default function PayeeSummary() {
               }`}
               onClick={() => setSelectedMonth(Number(month))}
             >
-              <h3 className="font-bold">{monthNames[month]}</h3>
-              <p className="text-2xl">${Number(total).toFixed(2)}</p>
-              {monthlyReturns[month] && (
-                <div className="mt-2 text-sm bg-blue-600 rounded px-2 py-1 inline-block">
-                  Return Doc Available
-                </div>
-              )}
-              {monthlyReturns[month] && (
-                <div className="mt-1 text-xs text-gray-300">
-                  {monthlyTransactions[month].length} transactions
-                </div>
-              )}
+              {/* Mobile-friendly month display */}
+              <h3 className="font-bold text-sm md:text-base truncate">
+                {monthNames[month]}
+              </h3>
+              
+              {/* Mobile-friendly amount display */}
+              <p className="text-xl md:text-2xl font-bold truncate">
+                {/* Show abbreviated amount on mobile, full amount on larger screens */}
+                <span className="md:hidden">{formatAmount(Number(total))}</span>
+                <span className="hidden md:inline">${Number(total).toFixed(2)}</span>
+              </p>
+
+              {/* Only show these details on tablet and desktop */}
+              <div className="hidden md:block">
+                {monthlyReturns[month] && (
+                  <div className="mt-2 text-sm bg-blue-600 rounded px-2 py-1 inline-block">
+                    Return Doc Available
+                  </div>
+                )}
+                {monthlyReturns[month] && (
+                  <div className="mt-1 text-xs text-gray-300">
+                    {monthlyTransactions[month].length} transactions
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile-only transaction count */}
+              <div className="md:hidden">
+                {monthlyReturns[month] && (
+                  <div className="mt-1 text-xs text-gray-300">
+                    {monthlyTransactions[month].length}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -257,67 +285,54 @@ export default function PayeeSummary() {
 
       {/* Section 2: Transaction Table */}
       <div className="bg-gray-800 p-6 rounded-lg">
-        <h2 className="text-xl font-bold mb-4 text-white">
-          {monthNames[selectedMonth]} Transactions
-          <span className="ml-2 text-sm bg-blue-600 rounded px-2 py-1">
-            {monthlyTransactions[selectedMonth].length} items
+        <h2 className="text-xl font-bold mb-4 text-white flex items-center justify-between">
+          <span className="truncate">{monthNames[selectedMonth]}</span>
+          <span className="text-sm bg-blue-600 rounded px-2 py-1 ml-2">
+            {monthlyTransactions[selectedMonth].length}
           </span>
         </h2>
-        
-        {/* Month Tabs */}
-        <div className="flex flex-wrap gap-2 mb-4 overflow-x-auto">
-          {Object.entries(monthNames).map(([month, name]) => (
-            <button
-              key={month}
-              onClick={() => setSelectedMonth(Number(month))}
-              className={`px-4 py-2 rounded ${
-                selectedMonth === Number(month)
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-700 text-white hover:bg-gray-600'
-              } ${monthlyReturns[month] ? 'border-b-2 border-green-400' : ''}`}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
 
-        {/* Transaction Table */}
+        {/* Responsive table */}
         {monthlyTransactions[selectedMonth] && monthlyTransactions[selectedMonth].length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-6">
             <table className="min-w-full bg-black text-white">
               <thead className="bg-gray-900">
                 <tr>
+                  {/* Hide less important columns on mobile */}
                   <th className="px-4 py-2 border border-gray-700">Date</th>
                   <th className="px-4 py-2 border border-gray-700">Amount</th>
                   <th className="px-4 py-2 border border-gray-700">Description</th>
-                  <th className="px-4 py-2 border border-gray-700">Payment Method</th>
-                  <th className="px-4 py-2 border border-gray-700">Category</th>
-                  <th className="px-4 py-2 border border-gray-700">Notes</th>
+                  <th className="hidden md:table-cell px-4 py-2 border border-gray-700">Payment Method</th>
+                  <th className="hidden md:table-cell px-4 py-2 border border-gray-700">Category</th>
+                  <th className="hidden md:table-cell px-4 py-2 border border-gray-700">Notes</th>
                 </tr>
               </thead>
               <tbody>
                 {monthlyTransactions[selectedMonth].map((transaction) => (
                   <tr key={transaction._id} className="hover:bg-gray-700">
-                    <td className="px-4 py-2 border border-gray-700">
-                      {transaction.date ? formatDate(transaction.date) : `${transaction.month}-${transaction.day}-${transaction.year}`}
+                    <td className="px-4 py-2 border border-gray-700 whitespace-nowrap">
+                      {formatDate(transaction.date)}
                     </td>
-                    <td className="px-4 py-2 border border-gray-700 text-red-400">
+                    <td className="px-4 py-2 border border-gray-700 text-red-400 whitespace-nowrap">
                       ${Math.abs(transaction.amount).toFixed(2)}
                     </td>
-                    <td className="px-4 py-2 border border-gray-700">{transaction.description}</td>
-                    <td className="px-4 py-2 border border-gray-700">{transaction.paymentMethod}</td>
-                    <td className="px-4 py-2 border border-gray-700">{transaction.category}</td>
-                    <td className="px-4 py-2 border border-gray-700">{transaction.notes || '-'}</td>
+                    <td className="px-4 py-2 border border-gray-700 max-w-[200px] truncate">
+                      {transaction.description}
+                    </td>
+                    {/* Hide these columns on mobile */}
+                    <td className="hidden md:table-cell px-4 py-2 border border-gray-700">{transaction.paymentMethod}</td>
+                    <td className="hidden md:table-cell px-4 py-2 border border-gray-700">{transaction.category}</td>
+                    <td className="hidden md:table-cell px-4 py-2 border border-gray-700">{transaction.notes || '-'}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="bg-gray-900">
-                  <td colSpan="1" className="px-4 py-2 border border-gray-700 font-bold">Total</td>
+                  <td className="px-4 py-2 border border-gray-700 font-bold">Total</td>
                   <td className="px-4 py-2 border border-gray-700 text-red-400 font-bold">
                     ${Number(monthlySummary[selectedMonth]).toFixed(2)}
                   </td>
-                  <td colSpan="4" className="px-4 py-2 border border-gray-700"></td>
+                  <td colSpan="4" className="hidden md:table-cell px-4 py-2 border border-gray-700"></td>
                 </tr>
               </tfoot>
             </table>

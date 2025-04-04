@@ -9,16 +9,11 @@ const protectedRoutes = ['/user', '/summary', ...advancedRoutes];
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
   
-  // Don't run middleware for the home page or API routes
-  if (pathname === '/' || pathname.startsWith('/api/')) {
-    return NextResponse.next();
-  }
-  
-  console.log(`Middleware running for path: ${pathname}`);
-
-  // Check if the route is protected
-  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
-  const isAdvancedRoute = advancedRoutes.some(route => pathname.startsWith(route));
+  // Add strict protected routes check
+  const isProtectedRoute = !pathname.startsWith('/auth/') && 
+                          pathname !== '/' && 
+                          !pathname.includes('_next') &&
+                          !pathname.includes('api/auth');
 
   if (isProtectedRoute) {
     // Get auth token from cookies - check both possible tokens
@@ -26,45 +21,45 @@ export async function middleware(request) {
     let sessionToken = request.cookies.get('next-auth.session-token')?.value;
 
     if (!token && !sessionToken) {
-      // Store the attempted path, but default to /summary for the login page
-      const redirectUrl = new URL('/', request.url);
-      redirectUrl.searchParams.set('redirect_to', '/summary');
-      
-      console.log(`No auth tokens found, redirecting from ${pathname} to /summary`);
-      return NextResponse.redirect(redirectUrl);
+      console.log(`No auth tokens found, redirecting from ${pathname} to /`);
+      return NextResponse.redirect(new URL('/', request.url));
     }
 
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://expense-backend-rose.vercel.app';
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
     
+    try {
+      // Always verify token for protected routes
+      const response = await fetch(`${backendUrl}/api/users/verify-token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ token }),
+        cache: 'no-store',
+      });
 
-    if (isAdvancedRoute) {
-      try {
-        // For advanced routes, verify the user has advanced access
-        const response = await fetch(`${backendUrl}/api/users/verify-token`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ token }),
-          cache: 'no-store',
-        });
-
-        if (!response.ok) {
-          console.error('Token verification failed:', response.status);
-          return NextResponse.redirect(new URL('/', request.url));
-        }
-
-        const data = await response.json();
-
-        // Check if user has advanced access
-        if (data.accessLevel !== 'advanced') {
-          return NextResponse.redirect(new URL('/auth/error?error=unauthorized', request.url));
-        }
-      } catch (error) {
-        console.error('Error in middleware:', error);
+      if (!response.ok) {
+        console.error('Token verification failed:', response.status);
         return NextResponse.redirect(new URL('/', request.url));
       }
+
+      const data = await response.json();
+      
+      // Verify user exists and is approved
+      if (!data.user || !data.user.isApproved) {
+        return NextResponse.redirect(new URL('/auth/error?error=not_approved', request.url));
+      }
+
+      // Additional check for advanced routes
+      const isAdvancedRoute = advancedRoutes.some(route => pathname.startsWith(route));
+      if (isAdvancedRoute && data.accessLevel !== 'advanced') {
+        return NextResponse.redirect(new URL('/auth/error?error=unauthorized', request.url));
+      }
+
+    } catch (error) {
+      console.error('Error in middleware:', error);
+      return NextResponse.redirect(new URL('/', request.url));
     }
   }
 
