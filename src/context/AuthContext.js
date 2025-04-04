@@ -115,6 +115,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const verifyToken = async (token) => {
+    console.log("verifyToken called in Authcontext frontend")
     try {
       const response = await fetch(`${backendUrl}/api/users/verify-token`, {
         method: 'POST',
@@ -122,6 +123,7 @@ export const AuthProvider = ({ children }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ token }),
+        credentials: 'include',
       });
 
       if (!response.ok) {
