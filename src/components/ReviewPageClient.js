@@ -461,13 +461,15 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
 
   // Update getSelectedMonthSummary function to work for both specific months and all months
   const getSelectedMonthSummary = () => {
-    const allCategories = CATEGORIES;
     const summary = {};
     
-    // Initialize all categories with 0
-    allCategories.forEach(category => {
-      summary[category] = 0;
+    // Initialize all categories from CATEGORIES constant with 0
+    CATEGORIES.forEach(category => {
+      summary[category] = 0.00;
     });
+
+    // Add 'uncategorized' category
+    summary['uncategorized'] = 0.00;
 
     // For both "all" and specific month selection
     let transactionsToCalculate = transactions;
@@ -481,7 +483,14 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
       const amount = transaction.transactionType === 'expense' 
         ? -Math.abs(transaction.amount) 
         : Math.abs(transaction.amount);
-      summary[category] = (summary[category] || 0) + amount;
+      
+      // Only update if the category exists in our summary (including uncategorized)
+      if (category in summary) {
+        summary[category] = (summary[category] || 0) + amount;
+      } else {
+        // If somehow there's a category not in our constants, add to uncategorized
+        summary['uncategorized'] += amount;
+      }
     });
 
     return summary;
@@ -502,13 +511,16 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
       transactionsToCalculate = transactions.filter(t => t.month === selectedMonth);
     }
     
-    transactionsToCalculate.forEach(transaction => {
-      const method = transaction.paymentMethod;
-      if (method) {
-        const amount = Math.abs(transaction.amount);
-        summary[method] = (summary[method] || 0) + amount;
-      }
-    });
+    // Filter for expenses and calculate totals
+    transactionsToCalculate
+      .filter(transaction => transaction.transactionType === "expense") // Only include expenses
+      .forEach(transaction => {
+        const method = transaction.paymentMethod;
+        if (method) {
+          const amount = Math.abs(transaction.amount);
+          summary[method] = (summary[method] || 0) + amount;
+        }
+      });
 
     // Filter out payment methods with 0 amount
     return Object.fromEntries(
