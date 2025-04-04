@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { monthToReturnIdMap } from '@/utils/constants';
 import { fetchAvailableReturns, fetchMongoDBTransactions, fetchTransactionsByIds } from '@/services/api';
-import { AuthContext } from '@/context/AuthContext';
+import Cookies from 'js-cookie';
 
 export default function PayeeSummary() {
-  const { logout } = useContext(AuthContext);
   const router = useRouter();
   const [transactions, setTransactions] = useState([]);
   const [monthlyTransactions, setMonthlyTransactions] = useState({
@@ -147,9 +146,19 @@ export default function PayeeSummary() {
     }).format(date);
   };
 
-  const handleSignOut = async () => {
+  const handleSignOut = () => {
     try {
-      await logout();
+      // Remove cookies with specific options
+      const options = {
+        path: '/',
+        domain: window.location.hostname
+      };
+
+      Cookies.remove('auth_token', options);
+      Cookies.remove('next-auth.session-token', options);
+      Cookies.remove('next-auth.csrf-token', options);
+      Cookies.remove('next-auth.callback-url', options);
+      
       router.push('/');
     } catch (error) {
       console.error('Error signing out:', error);
@@ -166,20 +175,8 @@ export default function PayeeSummary() {
         <h1 className="text-3xl font-bold">Parents Monthly Expense Summary</h1>
         <button
           onClick={handleSignOut}
-          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm"
         >
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            className="h-5 w-5" 
-            viewBox="0 0 20 20" 
-            fill="currentColor"
-          >
-            <path 
-              fillRule="evenodd" 
-              d="M3 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H3zm11.707 4.707a1 1 0 0 0-1.414-1.414L10 9.586 6.707 6.293a1 1 0 0 0-1.414 1.414L8.586 11l-3.293 3.293a1 1 0 1 0 1.414 1.414L10 12.414l3.293 3.293a1 1 0 0 0 1.414-1.414L11.414 11l3.293-3.293z" 
-              clipRule="evenodd" 
-            />
-          </svg>
           Sign Out
         </button>
       </div>
