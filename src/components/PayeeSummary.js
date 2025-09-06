@@ -22,8 +22,14 @@ export default function PayeeSummary() {
     7: null, 8: null, 9: null, 10: null, 11: null, 12: null
   });
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [koreaData, setKoreaData] = useState(null);
+  const [koreaTransactions, setKoreaTransactions] = useState([]);
+  const [selectedSection, setSelectedSection] = useState('month'); // 'month' or 'korea'
   const [loading, setLoading] = useState(true);
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+  
+  // Korea (Mom) return document ID
+  const KOREA_RETURN_ID = '68ba19ebaf425ee291319a31';
 
   const monthNames = {
     1: 'January', 2: 'February', 3: 'March', 4: 'April',
@@ -48,6 +54,9 @@ export default function PayeeSummary() {
       
       // First fetch return documents with their transactions
       await fetchAllReturnDocuments();
+      
+      // Fetch Korea (Mom) return document
+      await fetchKoreaReturnDocument();
       
       // Then fetch all transactions for reference only
       await fetchTransactions();
@@ -121,6 +130,42 @@ export default function PayeeSummary() {
     }
   };
 
+  const fetchKoreaReturnDocument = async () => {
+    try {
+      // Fetch all return documents
+      const response = await fetchAvailableReturns();
+      const allReturns = response;
+      
+      // Find the Korea return document
+      const koreaReturn = allReturns.find(r => r._id === KOREA_RETURN_ID);
+      
+      if (koreaReturn) {
+        console.log('Found Korea return document:', koreaReturn);
+        setKoreaData(koreaReturn);
+        
+        // Fetch transactions for Korea return
+        if (koreaReturn.returnedTransactionIds && koreaReturn.returnedTransactionIds.length > 0) {
+          console.log(`Korea has ${koreaReturn.returnedTransactionIds.length} transactions`);
+          
+          try {
+            const transactions = await fetchTransactionsByIds(koreaReturn.returnedTransactionIds);
+            setKoreaTransactions(transactions);
+          } catch (error) {
+            console.error('Error fetching Korea transactions:', error);
+            setKoreaTransactions([]);
+          }
+        } else {
+          console.log('Korea has no transactions');
+          setKoreaTransactions([]);
+        }
+      } else {
+        console.log('Korea return document not found');
+      }
+    } catch (error) {
+      console.error('Error fetching Korea return document:', error);
+    }
+  };
+
   const fetchTransactions = async () => {
     try {
       const response = await fetchMongoDBTransactions()
@@ -189,9 +234,12 @@ export default function PayeeSummary() {
             <div 
               key={month} 
               className={`bg-gray-700 p-4 rounded-lg text-white cursor-pointer hover:bg-gray-600 ${
-                selectedMonth === Number(month) ? 'ring-2 ring-blue-500' : ''
+                selectedSection === 'month' && selectedMonth === Number(month) ? 'ring-2 ring-blue-500' : ''
               }`}
-              onClick={() => setSelectedMonth(Number(month))}
+              onClick={() => {
+                setSelectedSection('month');
+                setSelectedMonth(Number(month));
+              }}
             >
               {/* Mobile-friendly month display */}
               <h3 className="font-bold text-sm md:text-base truncate">
@@ -229,11 +277,45 @@ export default function PayeeSummary() {
               </div>
             </div>
           ))}
+          
+          {/* Korea (Mom) Section */}
+          {koreaData && (
+            <div 
+              className={`bg-purple-700 p-4 rounded-lg text-white cursor-pointer hover:bg-purple-600 ${
+                selectedSection === 'korea' ? 'ring-2 ring-blue-500' : ''
+              }`}
+              onClick={() => setSelectedSection('korea')}
+            >
+              <h3 className="font-bold text-sm md:text-base truncate">
+                Korea (Mom)
+              </h3>
+              
+              <p className="text-xl md:text-2xl font-bold truncate">
+                <span className="md:hidden">{formatAmount(Number(koreaData.total))}</span>
+                <span className="hidden md:inline">${Number(koreaData.total).toFixed(2)}</span>
+              </p>
+
+              <div className="hidden md:block">
+                <div className="mt-2 text-sm bg-purple-600 rounded px-2 py-1 inline-block">
+                  Special Return
+                </div>
+                <div className="mt-1 text-xs text-gray-300">
+                  {koreaTransactions.length} transactions
+                </div>
+              </div>
+
+              <div className="md:hidden">
+                <div className="mt-1 text-xs text-gray-300">
+                  {koreaTransactions.length}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Monthly Return Document Info */}
-      {monthlyReturns[selectedMonth] && (
+      {selectedSection === 'month' && monthlyReturns[selectedMonth] && (
         <div className="mb-6 bg-gray-800 p-6 rounded-lg">
           <h2 className="text-xl font-bold mb-4 text-white flex items-center justify-between">
             <span>{monthNames[selectedMonth]} Return Document</span>
@@ -312,17 +394,100 @@ export default function PayeeSummary() {
         </div>
       )}
 
+      {/* Korea Return Document Info */}
+      {selectedSection === 'korea' && koreaData && (
+        <div className="mb-6 bg-gray-800 p-6 rounded-lg">
+          <h2 className="text-xl font-bold mb-4 text-white flex items-center justify-between">
+            <span>Korea (Mom) Return Document</span>
+            <button
+              onClick={() => router.push(`/return/edit/${koreaData._id}`)}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white text-sm px-3 py-1 rounded"
+            >
+              Edit Return
+            </button>
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gray-700 p-4 rounded-lg">
+              <h3 className="text-gray-400 text-sm mb-1">Date</h3>
+              <p className="text-white">{formatDate(koreaData.date)}</p>
+            </div>
+            
+            <div className="bg-gray-700 p-4 rounded-lg">
+              <h3 className="text-gray-400 text-sm mb-1">Total Amount</h3>
+              <p className="text-red-400 text-xl font-bold">
+                ${koreaData.total.toFixed(2)}
+              </p>
+            </div>
+            
+            <div className="bg-gray-700 p-4 rounded-lg">
+              <h3 className="text-gray-400 text-sm mb-1">Description</h3>
+              <p className="text-white">{koreaData.description || 'No description'}</p>
+            </div>
+            
+            <div className="bg-gray-700 p-4 rounded-lg">
+              <h3 className="text-gray-400 text-sm mb-1">Lender</h3>
+              <p className="text-white">
+                {koreaData.lenderUser?.name || koreaData.lenderUserId || '-'}
+              </p>
+            </div>
+            
+            <div className="bg-gray-700 p-4 rounded-lg">
+              <h3 className="text-gray-400 text-sm mb-1">Payee</h3>
+              <p className="text-white">
+                {koreaData.payeeUser?.name || koreaData.payeeUserId || '-'}
+              </p>
+            </div>
+            
+            <div className="bg-gray-700 p-4 rounded-lg">
+              <h3 className="text-gray-400 text-sm mb-1">Status</h3>
+              <div className="flex gap-2 mt-1">
+                <span className={`px-2 py-1 rounded text-sm ${
+                  koreaData.paidBackConfirmationPayee
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-600 text-gray-300'
+                }`}>
+                  {koreaData.paidBackConfirmationPayee ? 'Payee Confirmed' : 'Payee Pending'}
+                </span>
+                <span className={`px-2 py-1 rounded text-sm ${
+                  koreaData.paidBackConfirmationLender
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-600 text-gray-300'
+                }`}>
+                  {koreaData.paidBackConfirmationLender ? 'Lender Confirmed' : 'Lender Pending'}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Transaction Count Summary */}
+          <div className="mt-4 bg-gray-700 p-3 rounded-lg">
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-gray-400">
+                <span className="font-medium text-white">{koreaData.returnedTransactionIds?.length || 0}</span> transactions linked to this return document
+              </div>
+              <div className="text-sm text-gray-400">
+                <span className="font-medium text-white">{koreaTransactions.length}</span> transactions shown below
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Section 2: Transaction Table */}
       <div className="bg-gray-800 p-6 rounded-lg">
         <h2 className="text-xl font-bold mb-4 text-white flex items-center justify-between">
-          <span className="truncate">{monthNames[selectedMonth]}</span>
+          <span className="truncate">
+            {selectedSection === 'korea' ? 'Korea (Mom)' : monthNames[selectedMonth]}
+          </span>
           <span className="text-sm bg-blue-600 rounded px-2 py-1 ml-2">
-            {monthlyTransactions[selectedMonth].length}
+            {selectedSection === 'korea' ? koreaTransactions.length : monthlyTransactions[selectedMonth].length}
           </span>
         </h2>
 
         {/* Responsive table */}
-        {monthlyTransactions[selectedMonth] && monthlyTransactions[selectedMonth].length > 0 ? (
+        {((selectedSection === 'month' && monthlyTransactions[selectedMonth] && monthlyTransactions[selectedMonth].length > 0) ||
+          (selectedSection === 'korea' && koreaTransactions && koreaTransactions.length > 0)) ? (
           <div className="overflow-x-auto -mx-6">
             <table className="min-w-full bg-black text-white">
               <thead className="bg-gray-900">
@@ -337,7 +502,7 @@ export default function PayeeSummary() {
                 </tr>
               </thead>
               <tbody>
-                {monthlyTransactions[selectedMonth].map((transaction) => (
+                {(selectedSection === 'korea' ? koreaTransactions : monthlyTransactions[selectedMonth]).map((transaction) => (
                   <tr key={transaction._id} className="hover:bg-gray-700">
                     <td className="px-4 py-2 border border-gray-700 whitespace-nowrap">
                       {formatDate(transaction.date)}
@@ -359,7 +524,9 @@ export default function PayeeSummary() {
                 <tr className="bg-gray-900">
                   <td className="px-4 py-2 border border-gray-700 font-bold">Total</td>
                   <td className="px-4 py-2 border border-gray-700 text-red-400 font-bold">
-                    ${Number(monthlySummary[selectedMonth]).toFixed(2)}
+                    ${selectedSection === 'korea' 
+                      ? Number(koreaData?.total || 0).toFixed(2) 
+                      : Number(monthlySummary[selectedMonth]).toFixed(2)}
                   </td>
                   <td colSpan="4" className="hidden md:table-cell px-4 py-2 border border-gray-700"></td>
                 </tr>
@@ -368,10 +535,17 @@ export default function PayeeSummary() {
           </div>
         ) : (
           <div className="text-center py-6 bg-gray-700 rounded">
-            <p className="text-gray-400">No transactions found for {monthNames[selectedMonth]}.</p>
-            {monthlyReturns[selectedMonth] && monthlyReturns[selectedMonth].returnedTransactionIds?.length > 0 && (
+            <p className="text-gray-400">
+              No transactions found for {selectedSection === 'korea' ? 'Korea (Mom)' : monthNames[selectedMonth]}.
+            </p>
+            {selectedSection === 'month' && monthlyReturns[selectedMonth] && monthlyReturns[selectedMonth].returnedTransactionIds?.length > 0 && (
               <p className="text-yellow-400 mt-2">
                 Note: This return document has {monthlyReturns[selectedMonth].returnedTransactionIds.length} linked transactions, but they could not be fetched.
+              </p>
+            )}
+            {selectedSection === 'korea' && koreaData && koreaData.returnedTransactionIds?.length > 0 && (
+              <p className="text-yellow-400 mt-2">
+                Note: This return document has {koreaData.returnedTransactionIds.length} linked transactions, but they could not be fetched.
               </p>
             )}
           </div>
