@@ -14,6 +14,7 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
   const [selectedTransactions, setSelectedTransactions] = useState(new Set());
   const [editingCell, setEditingCell] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState('all');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
   const isProduction = process.env.NEXT_PUBLIC_DEPLOYED_STAGE === 'production';
   const [expandedMonths, setExpandedMonths] = useState(new Set());
@@ -40,6 +41,8 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
 
   // Updated filteredTransactions with amount search
   const filteredTransactions = transactions
+    // Year filter
+    .filter(t => t.year === selectedYear)
     // Month filter
     .filter(t => selectedMonth === 'all' ? true : t.month === selectedMonth)
     // Category filter
@@ -462,7 +465,7 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
   // Update getSelectedMonthSummary function to work for both specific months and all months
   const getSelectedMonthSummary = () => {
     const summary = {};
-    
+
     // Initialize all categories from CATEGORIES constant with 0
     CATEGORIES.forEach(category => {
       summary[category] = 0.00;
@@ -471,10 +474,10 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
     // Add 'uncategorized' category
     summary['uncategorized'] = 0.00;
 
-    // For both "all" and specific month selection
-    let transactionsToCalculate = transactions;
+    // For both "all" and specific month selection, filter by year first
+    let transactionsToCalculate = transactions.filter(t => t.year === selectedYear);
     if (selectedMonth !== 'all') {
-      transactionsToCalculate = transactions.filter(t => t.month === selectedMonth);
+      transactionsToCalculate = transactionsToCalculate.filter(t => t.month === selectedMonth);
     }
     
     // Calculate summary for the filtered transactions
@@ -499,16 +502,16 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
   // New function to get payment method summary
   const getPaymentMethodSummary = () => {
     const summary = {};
-    
+
     // Initialize all payment methods with 0
     PAYMENT_METHODS.forEach(method => {
       summary[method] = 0;
     });
 
-    // Calculate for selected month or all months
-    let transactionsToCalculate = transactions;
+    // Calculate for selected month or all months, filtered by year
+    let transactionsToCalculate = transactions.filter(t => t.year === selectedYear);
     if (selectedMonth !== 'all') {
-      transactionsToCalculate = transactions.filter(t => t.month === selectedMonth);
+      transactionsToCalculate = transactionsToCalculate.filter(t => t.month === selectedMonth);
     }
     
     // Filter for expenses and calculate totals
@@ -584,7 +587,7 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
     const summary = {};
     const quarterMonths = getMonthsInQuarter(quarter);
     const targetCards = ['Freedom', 'Freedom Flex']; // Only get data for these cards
-    
+
     // Initialize only the target cards with 0
     targetCards.forEach(method => {
       summary[method] = {
@@ -595,9 +598,9 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
       };
     });
 
-    // Calculate for the quarter - filter for Freedom cards only
+    // Calculate for the quarter - filter for Freedom cards only, filtered by year
     transactions
-      .filter(t => quarterMonths.includes(t.month) && targetCards.includes(t.paymentMethod))
+      .filter(t => t.year === selectedYear && quarterMonths.includes(t.month) && targetCards.includes(t.paymentMethod))
       .forEach(transaction => {
         const method = transaction.paymentMethod;
         const amount = Math.abs(transaction.amount);
@@ -916,6 +919,32 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
             </button>
           </>
         )}
+      </div>
+
+      {/* Year Tabs */}
+      <div className="mb-6">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setSelectedYear(2025)}
+            className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+              selectedYear === 2025
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            2025
+          </button>
+          <button
+            onClick={() => setSelectedYear(2026)}
+            className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+              selectedYear === 2026
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            2026
+          </button>
+        </div>
       </div>
 
       {/* Updated Month Filter with Summaries */}

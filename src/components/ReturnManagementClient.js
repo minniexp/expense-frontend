@@ -10,6 +10,13 @@ export default function ReturnManagementClient({ initialReturns }) {
   const [loading, setLoading] = useState(false); // Set to false initially since we have initialReturns
   const [selectedReturns, setSelectedReturns] = useState(new Set());
   const [sortOrder, setSortOrder] = useState('asc'); // Default sort order (oldest first)
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  // Filter returns by selected year
+  const filteredReturns = returns.filter(returnDoc => {
+    const returnYear = new Date(returnDoc.date).getFullYear();
+    return returnYear === selectedYear;
+  });
 
   // Fetch all return documents using similar approach to fetchMongoDBTransactions
   const fetchReturnDocuments = async () => {
@@ -126,12 +133,12 @@ export default function ReturnManagementClient({ initialReturns }) {
 
   // Handle select all
   const handleSelectAll = () => {
-    if (selectedReturns.size === returns.length) {
+    if (selectedReturns.size === filteredReturns.length) {
       // If all are selected, clear selection
       setSelectedReturns(new Set());
     } else {
-      // Select all returns
-      setSelectedReturns(new Set(returns.map(r => r._id)));
+      // Select all filtered returns
+      setSelectedReturns(new Set(filteredReturns.map(r => r._id)));
     }
   };
 
@@ -185,10 +192,36 @@ export default function ReturnManagementClient({ initialReturns }) {
       </div>
 
       <h1 className="text-2xl font-bold mb-6">Returns Management</h1>
-      
+
+      {/* Year Tabs */}
+      <div className="mb-6">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setSelectedYear(2025)}
+            className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+              selectedYear === 2025
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            2025
+          </button>
+          <button
+            onClick={() => setSelectedYear(2026)}
+            className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+              selectedYear === 2026
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            2026
+          </button>
+        </div>
+      </div>
+
       {loading ? (
         <div className="text-center text-gray-600">Loading returns...</div>
-      ) : returns.length > 0 ? (
+      ) : filteredReturns.length > 0 ? (
         <div className="overflow-x-auto">
           {/* Sort order toggle button */}
           <div className="mb-2 flex justify-end">
@@ -218,7 +251,7 @@ export default function ReturnManagementClient({ initialReturns }) {
                 <th className="px-4 py-2 border border-gray-600">
                   <input
                     type="checkbox"
-                    checked={returns.length > 0 && selectedReturns.size === returns.length}
+                    checked={filteredReturns.length > 0 && selectedReturns.size === filteredReturns.length}
                     onChange={handleSelectAll}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700"
                   />
@@ -251,7 +284,7 @@ export default function ReturnManagementClient({ initialReturns }) {
               </tr>
             </thead>
             <tbody>
-              {returns.map((returnDoc) => (
+              {filteredReturns.map((returnDoc) => (
                 <tr key={returnDoc._id} className="border-t border-gray-700 hover:bg-gray-700">
                   <td className="px-4 py-2">
                     <input

@@ -69,7 +69,7 @@ export default function ReviewPage() {
       'travel', 'international', 'fuel'
     ];
   
-    const pointsOptions = [0, 1, 1.5, 3, 5, 7, 10];
+    const pointsOptions = [0, 1, 1.5, 3, 4, 5, 7, 8, 10];
   
     const renderPointsSelector = (transaction, currentPoints) => {
       return (

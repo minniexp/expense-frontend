@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { monthToReturnIdMap } from '@/utils/constants';
+import { monthToReturnIdMap, MONTH_TO_RETURN_ID_MAP_2026 } from '@/utils/constants';
 import { fetchAvailableReturns, fetchMongoDBTransactions, fetchTransactionsByIds } from '@/services/api';
 import Cookies from 'js-cookie';
 
@@ -22,6 +22,7 @@ export default function PayeeSummary() {
     7: null, 8: null, 9: null, 10: null, 11: null, 12: null
   });
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [koreaData, setKoreaData] = useState(null);
   const [koreaTransactions, setKoreaTransactions] = useState([]);
   const [selectedSection, setSelectedSection] = useState('month'); // 'month' or 'korea'
@@ -46,7 +47,7 @@ export default function PayeeSummary() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedYear]);
 
   const fetchData = async () => {
     try {
@@ -73,16 +74,19 @@ export default function PayeeSummary() {
       const monthReturnsData = {};
       const monthlyTransactionsData = { ...monthlyTransactions };
       const monthlySummaryData = { ...monthlySummary };
-      
+
       // Fetch all return documents
       const response = await fetchAvailableReturns()
-      
+
       const allReturns = response
-      
+
+      // Select the appropriate map based on selected year
+      const currentYearMap = selectedYear === 2026 ? MONTH_TO_RETURN_ID_MAP_2026 : monthToReturnIdMap;
+
       // Map return documents to their respective months
       for (let month = 1; month <= 12; month++) {
-  
-        const returnId = monthToReturnIdMap[month]
+
+        const returnId = currentYearMap[month]
 
         
         if (returnId) {
@@ -224,6 +228,32 @@ export default function PayeeSummary() {
         >
           Sign Out
         </button>
+      </div>
+
+      {/* Year Tabs */}
+      <div className="mb-6">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setSelectedYear(2025)}
+            className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+              selectedYear === 2025
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            2025
+          </button>
+          <button
+            onClick={() => setSelectedYear(2026)}
+            className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+              selectedYear === 2026
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            2026
+          </button>
+        </div>
       </div>
 
       {/* Section 1: Summary */}

@@ -53,7 +53,7 @@ export const PURCHASE_CATEGORIES = [
 ];
 
 // Points options
-export const POINTS_OPTIONS = [0, 1, 1.5, 3, 5, 7, 10];
+export const POINTS_OPTIONS = [0, 1, 1.5, 3, 4, 5, 7, 8, 10];
 
 // Month names mapping
 export const MONTH_NAMES = {
@@ -63,16 +63,31 @@ export const MONTH_NAMES = {
 }; 
 
 export const monthToReturnIdMap = {
-    1: process.env.NEXT_PUBLIC_JAN_RETURNID,
-    2: process.env.NEXT_PUBLIC_FEB_RETURNID,
-    3: process.env.NEXT_PUBLIC_MAR_RETURNID,
-    4: process.env.NEXT_PUBLIC_APR_RETURNID,
-    5: process.env.NEXT_PUBLIC_MAY_RETURNID,
-    6: process.env.NEXT_PUBLIC_JUN_RETURNID,
-    7: process.env.NEXT_PUBLIC_JUL_RETURNID,
-    8: process.env.NEXT_PUBLIC_AUG_RETURNID,
-    9: process.env.NEXT_PUBLIC_SEP_RETURNID,
-    10: process.env.NEXT_PUBLIC_OCT_RETURNID,
-    11: process.env.NEXT_PUBLIC_NOV_RETURNID,
-    12: process.env.NEXT_PUBLIC_DEC_RETURNID
+    1: process.env.NEXT_PUBLIC_2025_JAN_RETURNID,
+    2: process.env.NEXT_PUBLIC_2025_FEB_RETURNID,
+    3: process.env.NEXT_PUBLIC_2025_MAR_RETURNID,
+    4: process.env.NEXT_PUBLIC_2025_APR_RETURNID,
+    5: process.env.NEXT_PUBLIC_2025_MAY_RETURNID,
+    6: process.env.NEXT_PUBLIC_2025_JUN_RETURNID,
+    7: process.env.NEXT_PUBLIC_2025_JUL_RETURNID,
+    8: process.env.NEXT_PUBLIC_2025_AUG_RETURNID,
+    9: process.env.NEXT_PUBLIC_2025_SEP_RETURNID,
+    10: process.env.NEXT_PUBLIC_2025_OCT_RETURNID,
+    11: process.env.NEXT_PUBLIC_2025_NOV_RETURNID,
+    12: process.env.NEXT_PUBLIC_2025_DEC_RETURNID
+  };
+
+  export const MONTH_TO_RETURN_ID_MAP_2026 = {
+    1: process.env.NEXT_PUBLIC_2026_JAN_RETURNID,
+    2: process.env.NEXT_PUBLIC_2026_FEB_RETURNID,
+    3: process.env.NEXT_PUBLIC_2026_MAR_RETURNID,
+    4: process.env.NEXT_PUBLIC_2026_APR_RETURNID,
+    5: process.env.NEXT_PUBLIC_2026_MAY_RETURNID,
+    6: process.env.NEXT_PUBLIC_2026_JUN_RETURNID,
+    7: process.env.NEXT_PUBLIC_2026_JUL_RETURNID,
+    8: process.env.NEXT_PUBLIC_2026_AUG_RETURNID,
+    9: process.env.NEXT_PUBLIC_2026_SEP_RETURNID,
+    10: process.env.NEXT_PUBLIC_2026_OCT_RETURNID,
+    11: process.env.NEXT_PUBLIC_2026_NOV_RETURNID,
+    12: process.env.NEXT_PUBLIC_2026_DEC_RETURNID
   };
