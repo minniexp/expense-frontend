@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchTellerTransactionsWithAuth, saveTransactions } from '@/services/api';
+import TellerLink from '@/components/TellerLink';
 
 export default function ReviewPage() {
     const [transactions, setTransactions] = useState([]);
@@ -410,6 +411,8 @@ export default function ReviewPage() {
     return (
       <div className="container mx-auto p-4">
         <h1 className="text-white">DEPLOYED_STAGE: {process.env.NEXT_PUBLIC_DEPLOYED_STAGE}</h1>
+        <TellerLink />
+
         {transactions.length > 0 && (
           <div className="mb-4 text-white bg-gray-800 p-3 rounded-lg inline-block">
             Total Transactions: <span className="font-bold">{transactions.length}</span>

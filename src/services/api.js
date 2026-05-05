@@ -244,6 +244,29 @@ export const fetchReturn = async (id) => {
   }
 };
 
+// Fetches Teller Connect setup config (applicationId, environment, enrollmentId for update mode)
+export const fetchTellerEnrollmentConfig = async () => {
+  const token = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth_token='))
+    ?.split('=')[1];
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/teller/enrollment-config`, {
+    headers,
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || `Failed to fetch enrollment config (${response.status})`);
+  }
+
+  return await response.json();
+};
+
 // For fetching Teller transactions with authentication
 export const fetchTellerTransactionsWithAuth = async () => {
   try {
