@@ -20,28 +20,38 @@ export default function ReviewPage() {
     // permanently skipped by narrowing it, and widening it re-surfaces everything inside.
     const [lookback, setLookback] = useState('90');
     const [summary, setSummary] = useState(null);
-    const [hideDuplicates, setHideDuplicates] = useState(false);
   
     // Get unique categories from transactions
     const categories = ['all', ...new Set(transactions.map(t => t.category))].filter(Boolean);
     const months = ['all', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
-    // Filter transactions based on selected filters.
-    // NOTE: this used to compare `month.padStart(2,'0')` against unpadded option values
-    // ('01' === '1' is false), so filtering by any month Jan–Sep silently returned nothing.
+    // Everything the backend returns is already the final list: transactions present in
+    // MongoDB are removed server-side by ID before the response is built, so nothing shown
+    // here is "already logged". The filters below are view conveniences only — they never
+    // remove a row that would otherwise need action.
+    //
+    // NOTE: the month filter used to compare `month.padStart(2,'0')` against unpadded option
+    // values ('01' === '1' is false), so filtering by any month Jan–Sep silently showed nothing.
     const filteredTransactions = transactions.filter(transaction => {
       const matchesCategory = categoryFilter === 'all' || transaction.category === categoryFilter;
       const matchesMonth = monthFilter === 'all' || String(transaction.month) === monthFilter;
-      const matchesDuplicate = !hideDuplicates || !transaction.possibleDuplicate;
-      return matchesCategory && matchesMonth && matchesDuplicate;
+      return matchesCategory && matchesMonth;
     });
 
-    // Select All operates on what is VISIBLE, not on the whole fetch. Selecting rows the
-    // filters are hiding — in particular rows hidden by "Hide possible duplicates" — would
-    // let the user save transactions they never saw and cannot inspect.
+    // Select All acts on what is VISIBLE. Combined with the rule above — no row is ever hidden
+    // for being a duplicate or already-saved — "Select All" and "everything on screen" are the
+    // same set, so it cannot pick up a row the user never saw.
     const allVisibleSelected =
       filteredTransactions.length > 0 &&
       filteredTransactions.every(t => selectedTransactions.has(t.tellerTransactionId));
+
+    // Every count on the buttons is the count of rows that are selected AND on screen, so the
+    // number on "Save Selected" is exactly what will be written.
+    const selectedVisible = filteredTransactions.filter(t =>
+      selectedTransactions.has(t.tellerTransactionId)
+    );
+    const selectedVisibleCount = selectedVisible.length;
+    const selectedVisibleDuplicates = selectedVisible.filter(t => t.possibleDuplicate).length;
 
     const handleSelectAll = () => {
       const visibleIds = filteredTransactions.map(t => t.tellerTransactionId);
@@ -392,16 +402,18 @@ export default function ReviewPage() {
         return;
       }
   
-      if (selectedTransactions.size > transactions.length) {
-        alert('There is an issue with selections. Close the page and try again.');
-        return;
-      }
-  
-      const selectedTransactionData = transactions.filter(t => 
+      // Save only rows that are BOTH selected and currently on screen. A selection made before
+      // a refetch or a filter change could otherwise carry an id the user can no longer see.
+      const selectedTransactionData = filteredTransactions.filter(t =>
         selectedTransactions.has(t.tellerTransactionId)
       );
-    //   console.log('Selected Transactions REQUEST CALL:', Array.from(selectedTransactionData));
-  
+
+      if (selectedTransactionData.length === 0) {
+        alert('The selected transactions are no longer visible. Fetch again and re-select.');
+        setSelectedTransactions(new Set());
+        return;
+      }
+
       const duplicateCount = selectedTransactionData.filter(t => t.possibleDuplicate).length;
       if (duplicateCount > 0) {
         const proceed = window.confirm(
@@ -432,17 +444,25 @@ export default function ReviewPage() {
     };
   
     const handleRemoveSelected = () => {
-      if (selectedTransactions.size === 0) {
+      if (selectedVisibleCount === 0) {
         alert('Please select transactions to remove');
         return;
       }
-  
-      const confirmDelete = window.confirm(`Are you sure you want to remove ${selectedTransactions.size} transaction(s)?`);
-      
+
+      // "Remove" only drops rows from this session's list — it deletes nothing and saves
+      // nothing. Anything removed here reappears on the next fetch, because the backend
+      // decides what is outstanding by comparing against MongoDB, not against this view.
+      const confirmDelete = window.confirm(
+        `Remove ${selectedVisibleCount} transaction(s) from this list?\n\n` +
+        'This only clears them from the current view — nothing is deleted, and they will ' +
+        'appear again next time you fetch until you save them.'
+      );
+
       if (confirmDelete) {
-        setTransactions(prevTransactions => 
-          prevTransactions.filter(transaction => 
-            !selectedTransactions.has(transaction.tellerTransactionId)
+        const removeIds = new Set(selectedVisible.map(t => t.tellerTransactionId));
+        setTransactions(prevTransactions =>
+          prevTransactions.filter(transaction =>
+            !removeIds.has(transaction.tellerTransactionId)
           )
         );
         setSelectedTransactions(new Set()); // Clear selections after removal
@@ -614,24 +634,33 @@ export default function ReviewPage() {
                     : 'bg-red-700 hover:bg-red-800'
                 } text-white font-bold py-2 px-4 rounded`}
               >
-                Remove Selected ({selectedTransactions.size})
+                Remove Selected ({selectedVisibleCount})
               </button>
   
               <button
                 onClick={handleSaveTransactions}
-                disabled={saving || selectedTransactions.size === 0}
+                disabled={saving || selectedVisibleCount === 0}
                 className={`${
-                  selectedTransactions.size === 0
+                  selectedVisibleCount === 0
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-green-500 hover:bg-green-700'
                 } text-white font-bold py-2 px-4 rounded`}
               >
-                {saving ? 'Saving...' : `Save Selected (${selectedTransactions.size})`}
+                {saving ? 'Saving...' : `Save Selected (${selectedVisibleCount})`}
               </button>
             </>
           )}
         </div>
-  
+
+        {selectedVisibleDuplicates > 0 && (
+          <div className="mb-4 text-sm text-amber-400">
+            ⚠ {selectedVisibleDuplicates} of the {selectedVisibleCount} selected row
+            {selectedVisibleCount === 1 ? ' is' : 's are'} flagged{' '}
+            <span className="bg-amber-500 text-black px-1 rounded text-xs font-bold">DUP?</span>
+            {' '}— hover the badge to see which existing entry it resembles.
+          </div>
+        )}
+
         <div className="mb-4 flex gap-4 items-center">
           <div className="flex items-center gap-2">
             <label className="text-white">Category:</label>
@@ -663,24 +692,11 @@ export default function ReviewPage() {
             </select>
           </div>
   
-          {summary?.possibleDuplicates > 0 && (
-            <label className="flex items-center gap-2 text-white cursor-pointer">
-              <input
-                type="checkbox"
-                checked={hideDuplicates}
-                onChange={(e) => setHideDuplicates(e.target.checked)}
-                className="h-4 w-4 rounded bg-gray-700 border-gray-600"
-              />
-              Hide possible duplicates
-            </label>
-          )}
-
-          {(categoryFilter !== 'all' || monthFilter !== 'all' || hideDuplicates) && (
+          {(categoryFilter !== 'all' || monthFilter !== 'all') && (
             <button
               onClick={() => {
                 setCategoryFilter('all');
                 setMonthFilter('all');
-                setHideDuplicates(false);
               }}
               className="text-gray-300 hover:text-white"
             >
