@@ -16,15 +16,44 @@ export default function ReviewPage() {
     const [categoryFilter, setCategoryFilter] = useState('all');
     const [monthFilter, setMonthFilter] = useState('all');
     const [statement, setStatement] = useState('Press Fetch Teller Transactions');
+    // Lookback window for the review list. This is purely a display window — nothing is
+    // permanently skipped by narrowing it, and widening it re-surfaces everything inside.
+    const [lookback, setLookback] = useState('90');
+    const [summary, setSummary] = useState(null);
+    const [hideDuplicates, setHideDuplicates] = useState(false);
   
+    // Get unique categories from transactions
+    const categories = ['all', ...new Set(transactions.map(t => t.category))].filter(Boolean);
+    const months = ['all', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+
+    // Filter transactions based on selected filters.
+    // NOTE: this used to compare `month.padStart(2,'0')` against unpadded option values
+    // ('01' === '1' is false), so filtering by any month Jan–Sep silently returned nothing.
+    const filteredTransactions = transactions.filter(transaction => {
+      const matchesCategory = categoryFilter === 'all' || transaction.category === categoryFilter;
+      const matchesMonth = monthFilter === 'all' || String(transaction.month) === monthFilter;
+      const matchesDuplicate = !hideDuplicates || !transaction.possibleDuplicate;
+      return matchesCategory && matchesMonth && matchesDuplicate;
+    });
+
+    // Select All operates on what is VISIBLE, not on the whole fetch. Selecting rows the
+    // filters are hiding — in particular rows hidden by "Hide possible duplicates" — would
+    // let the user save transactions they never saw and cannot inspect.
+    const allVisibleSelected =
+      filteredTransactions.length > 0 &&
+      filteredTransactions.every(t => selectedTransactions.has(t.tellerTransactionId));
+
     const handleSelectAll = () => {
-      if (selectedTransactions.size === transactions.length) {
-        // If all are selected, clear selection
-        setSelectedTransactions(new Set());
-      } else {
-        // Select all transactions
-        setSelectedTransactions(new Set(transactions.map(t => t.tellerTransactionId)));
-      }
+      const visibleIds = filteredTransactions.map(t => t.tellerTransactionId);
+      setSelectedTransactions(prev => {
+        const next = new Set(prev);
+        if (allVisibleSelected) {
+          visibleIds.forEach(id => next.delete(id));
+        } else {
+          visibleIds.forEach(id => next.add(id));
+        }
+        return next;
+      });
     };
   
     const handleCheckboxChange = (transaction) => {
@@ -328,18 +357,30 @@ export default function ReviewPage() {
       }
     };
   
-    const handleFetchTellerTransactions = async () => {
+    const handleFetchTellerTransactions = async (windowOverride) => {
+      const chosen = windowOverride ?? lookback;
       try {
         setLoading(true);
-        const data = await fetchTellerTransactionsWithAuth();
+        const options = chosen === 'all' ? { all: true } : { days: Number(chosen) };
+        const { transactions: data, summary: fetchSummary } =
+          await fetchTellerTransactionsWithAuth(options);
+
         setTransactions(data);
+        setSummary(fetchSummary);
+        setSelectedTransactions(new Set()); // stale ids must not survive a refetch
+
         if (data.length === 0) {
-          setStatement('No transactions found matching the selected filters.');
+          setStatement(
+            fetchSummary
+              ? `Nothing new — all ${fetchSummary.alreadyLogged} transactions in this window are already logged.`
+              : 'No new transactions found.'
+          );
         } else {
           setStatement('Press Fetch Teller Transactions');
         }
       } catch (error) {
         console.error('Error fetching Teller transactions:', error);
+        setStatement(`Failed to fetch: ${error.message}`);
       } finally {
         setLoading(false);
       }
@@ -361,12 +402,23 @@ export default function ReviewPage() {
       );
     //   console.log('Selected Transactions REQUEST CALL:', Array.from(selectedTransactionData));
   
+      const duplicateCount = selectedTransactionData.filter(t => t.possibleDuplicate).length;
+      if (duplicateCount > 0) {
+        const proceed = window.confirm(
+          `${duplicateCount} of the ${selectedTransactionData.length} selected transaction(s) are ` +
+          'flagged as possible duplicates of entries already in your database. Save anyway?'
+        );
+        if (!proceed) return;
+      }
+
       try {
         setSaving(true);
-        const response = await saveTransactions(selectedTransactionData);
-        
+        await saveTransactions(selectedTransactionData);
+
         setSelectedTransactions(new Set());
         alert('Transactions saved successfully!');
+        // Re-run the diff so saved rows drop off and anything still outstanding stays visible.
+        await handleFetchTellerTransactions();
       } catch (error) {
         console.error('Error saving transactions:', error);
         alert('Failed to save transactions: ' + error.message);
@@ -397,29 +449,110 @@ export default function ReviewPage() {
       }
     };
   
-    // Get unique categories from transactions
-    const categories = ['all', ...new Set(transactions.map(t => t.category))].filter(Boolean);
-    const months = ['all', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
-  
-    // Filter transactions based on selected filters
-    const filteredTransactions = transactions.filter(transaction => {
-      const matchesCategory = categoryFilter === 'all' || transaction.category === categoryFilter;
-      const matchesMonth = monthFilter === 'all' || transaction.month.toString().padStart(2, '0') === monthFilter;
-      return matchesCategory && matchesMonth;
-    });
-  
     return (
       <div className="container mx-auto p-4">
         <h1 className="text-white">DEPLOYED_STAGE: {process.env.NEXT_PUBLIC_DEPLOYED_STAGE}</h1>
         <TellerLink />
 
-        {transactions.length > 0 && (
-          <div className="mb-4 text-white bg-gray-800 p-3 rounded-lg inline-block">
-            Total Transactions: <span className="font-bold">{transactions.length}</span>
+        {summary && (
+          <div className="mb-4 bg-gray-800 rounded-lg p-4 text-white">
+            <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
+              <div>
+                <div className="text-gray-400 text-xs uppercase tracking-wide">New to review</div>
+                <div className="text-2xl font-bold text-green-400">{summary.newCount}</div>
+              </div>
+              <div>
+                <div className="text-gray-400 text-xs uppercase tracking-wide">Already logged</div>
+                <div className="text-2xl font-bold text-gray-300">{summary.alreadyLogged}</div>
+              </div>
+              <div>
+                <div className="text-gray-400 text-xs uppercase tracking-wide">Excluded (payments)</div>
+                <div className="text-2xl font-bold text-gray-300">{summary.excluded}</div>
+              </div>
+              <div>
+                <div className="text-gray-400 text-xs uppercase tracking-wide">Outside window</div>
+                <div className="text-2xl font-bold text-gray-300">{summary.outsideWindow}</div>
+              </div>
+              {summary.possibleDuplicates > 0 && (
+                <div>
+                  <div className="text-gray-400 text-xs uppercase tracking-wide">Possible duplicates</div>
+                  <div className="text-2xl font-bold text-amber-400">{summary.possibleDuplicates}</div>
+                </div>
+              )}
+              {summary.pending > 0 && (
+                <div>
+                  <div className="text-gray-400 text-xs uppercase tracking-wide">Pending at Chase</div>
+                  <div className="text-2xl font-bold text-blue-400">{summary.pending}</div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-3 text-xs text-gray-400">
+              Scanned {summary.fetched} transactions from Chase
+              {summary.windowStart
+                ? ` dated ${summary.windowStart} or later`
+                : ' across all available history'}
+              . Matching is by transaction ID, so anything you leave unsaved will appear again
+              next time.
+              {summary.malformed > 0 && ` ${summary.malformed} were unreadable and skipped.`}
+            </div>
+
+            {summary.truncatedAccounts?.length > 0 && (
+              <div className="mt-2 text-xs text-amber-400">
+                ⚠ Coverage incomplete for: {summary.truncatedAccounts.join(', ')} — hit the
+                pagination limit, so older transactions on these accounts were not scanned.
+              </div>
+            )}
+            {summary.rateLimitedAccounts?.length > 0 && (
+              <div className="mt-2 text-xs text-amber-400">
+                ⚠ Chase/Teller rate-limited: {summary.rateLimitedAccounts.join(', ')} — wait a
+                minute and fetch again to see the rest.
+              </div>
+            )}
+            {summary.failedAccounts?.length > 0 && (
+              <div className="mt-2 text-xs text-red-400">
+                ⚠ Failed to fetch: {summary.failedAccounts.join(', ')} — results are incomplete.
+              </div>
+            )}
           </div>
         )}
-        
-        <div className="mb-4 flex gap-4">
+
+        {transactions.length > 0 && (
+          <div className="mb-4 text-white bg-gray-800 p-3 rounded-lg inline-block">
+            Showing: <span className="font-bold">{filteredTransactions.length}</span>
+            {filteredTransactions.length !== transactions.length && ` of ${transactions.length}`}
+          </div>
+        )}
+
+        <div className="mb-4 flex gap-4 items-center flex-wrap">
+          <div className="flex items-center gap-2">
+            <label className="text-white">Look back:</label>
+            <select
+              value={lookback}
+              onChange={(e) => {
+                setLookback(e.target.value);
+                handleFetchTellerTransactions(e.target.value);
+              }}
+              disabled={loading}
+              className="bg-gray-700 text-white rounded px-3 py-1 border border-gray-600"
+            >
+              <option value="30">30 days</option>
+              <option value="90">90 days</option>
+              <option value="180">180 days</option>
+              <option value="365">1 year</option>
+              <option value="all">All history (slow)</option>
+            </select>
+          </div>
+          {lookback === 'all' && (
+            <span className="text-xs text-amber-400 max-w-xl">
+              All-history pages back through every account and takes ~30s. Chase may rate-limit
+              it partway; if that happens the banner above will say which accounts were
+              incomplete — just fetch again in a minute. The dated windows each take ~6s.
+            </span>
+          )}
+        </div>
+
+        <div className="mb-4 flex gap-4 flex-wrap">
           {/* <button
             onClick={handleFetchTransactions}
             disabled={loading || isProduction}
@@ -436,7 +569,7 @@ export default function ReviewPage() {
           </button> */}
   
           <button
-            onClick={handleFetchTellerTransactions}
+            onClick={() => handleFetchTellerTransactions()}
             disabled={loading || isProduction}
             className={`
               font-bold py-2 px-4 rounded transition-colors duration-200
@@ -456,7 +589,8 @@ export default function ReviewPage() {
                 onClick={handleSelectAll}
                 className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
               >
-                {selectedTransactions.size === transactions.length ? 'Unselect All' : 'Select All'}
+                {allVisibleSelected ? 'Unselect All' : 'Select All'}
+                {filteredTransactions.length !== transactions.length && ' (visible)'}
               </button>
   
               <button
@@ -529,11 +663,24 @@ export default function ReviewPage() {
             </select>
           </div>
   
-          {(categoryFilter !== 'all' || monthFilter !== 'all') && (
+          {summary?.possibleDuplicates > 0 && (
+            <label className="flex items-center gap-2 text-white cursor-pointer">
+              <input
+                type="checkbox"
+                checked={hideDuplicates}
+                onChange={(e) => setHideDuplicates(e.target.checked)}
+                className="h-4 w-4 rounded bg-gray-700 border-gray-600"
+              />
+              Hide possible duplicates
+            </label>
+          )}
+
+          {(categoryFilter !== 'all' || monthFilter !== 'all' || hideDuplicates) && (
             <button
               onClick={() => {
                 setCategoryFilter('all');
                 setMonthFilter('all');
+                setHideDuplicates(false);
               }}
               className="text-gray-300 hover:text-white"
             >
@@ -552,11 +699,12 @@ export default function ReviewPage() {
                   <th className="px-4 py-2 border border-gray-600">
                     <input
                       type="checkbox"
-                      checked={transactions.length > 0 && selectedTransactions.size === transactions.length}
+                      checked={allVisibleSelected}
                       onChange={handleSelectAll}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700"
                     />
                   </th>
+                  <th className="px-4 py-2 border border-gray-600">Flags</th>
                   <th className="px-4 py-2 border border-gray-600">Year</th>
                   <th className="px-4 py-2 border border-gray-600">MM</th>
                   <th className="px-4 py-2 border border-gray-600">DD</th>
@@ -576,7 +724,12 @@ export default function ReviewPage() {
               </thead>
               <tbody>
                 {filteredTransactions.map((transaction) => (
-                  <tr key={transaction.tellerTransactionId} className="hover:bg-gray-700">
+                  <tr
+                    key={transaction.tellerTransactionId}
+                    className={`hover:bg-gray-700 ${
+                      transaction.possibleDuplicate ? 'bg-amber-950/40' : ''
+                    }`}
+                  >
                     <td className="px-4 py-2 border border-gray-600">
                       <input
                         type="checkbox"
@@ -584,6 +737,24 @@ export default function ReviewPage() {
                         onChange={() => handleCheckboxChange(transaction)}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700"
                       />
+                    </td>
+                    <td className="px-4 py-2 border border-gray-600 whitespace-nowrap">
+                      {transaction.possibleDuplicate && (
+                        <span
+                          title={transaction.duplicateReason || 'Possible duplicate'}
+                          className="bg-amber-500 text-black px-2 py-0.5 rounded text-xs font-bold cursor-help"
+                        >
+                          DUP?
+                        </span>
+                      )}
+                      {transaction.status === 'pending' && (
+                        <span
+                          title="Still pending at Chase — the amount or date may change when it posts."
+                          className="ml-1 bg-blue-500 text-white px-2 py-0.5 rounded text-xs font-bold cursor-help"
+                        >
+                          PENDING
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-2 border border-gray-600">
                       {renderEditableCell(transaction, 'year', transaction.year)}

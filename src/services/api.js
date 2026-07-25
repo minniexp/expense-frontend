@@ -267,34 +267,55 @@ export const fetchTellerEnrollmentConfig = async () => {
   return await response.json();
 };
 
-// For fetching Teller transactions with authentication
-export const fetchTellerTransactionsWithAuth = async () => {
+/**
+ * Fetch the Teller transactions that are not yet saved in MongoDB.
+ *
+ * The backend diffs on tellerTransactionId, so this is idempotent — anything left unsaved
+ * shows up again on the next fetch regardless of its date.
+ *
+ * @param {object} [options]
+ * @param {number} [options.days]  lookback window in days (backend default: 90)
+ * @param {boolean} [options.all]  ignore the window and consider all available history
+ * @returns {Promise<{transactions: Array, summary: object|null}>}
+ */
+export const fetchTellerTransactionsWithAuth = async (options = {}) => {
   try {
     // Get token from cookie client-side if available
     const token = document.cookie
       .split('; ')
       .find(row => row.startsWith('auth_token='))
       ?.split('=')[1];
-      
+
     const headers = {
       'Content-Type': 'application/json'
     };
-    
+
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/teller/transactions`, {
-      headers,
-      credentials: 'include'
-    });
-    
+
+    const params = new URLSearchParams({ format: 'detailed' });
+    if (options.all) {
+      params.set('all', 'true');
+    } else if (options.days) {
+      params.set('days', String(options.days));
+    }
+
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/teller/transactions?${params}`,
+      { headers, credentials: 'include' }
+    );
+
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || 'Failed to fetch Teller transactions');
+      throw new Error(error.message || error.error || 'Failed to fetch Teller transactions');
     }
-    
-    return await response.json();
+
+    const data = await response.json();
+
+    // Tolerate both shapes: an older backend still returns a bare array.
+    if (Array.isArray(data)) return { transactions: data, summary: null };
+    return { transactions: data.transactions || [], summary: data.summary || null };
   } catch (error) {
     console.error('API Error:', error);
     throw error;
