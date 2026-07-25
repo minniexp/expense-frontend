@@ -57,7 +57,7 @@ export default function ReturnManagementClient({ initialReturns }) {
     try {
       setLoading(true);
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-      const response = await fetch(`${backendUrl}/api/returns`, {
+      const response = await fetch(`/api/returns`, {
         credentials: 'include'
       });
       

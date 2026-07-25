@@ -1,5 +1,4 @@
 import axios from 'axios';
-import Cookies from 'js-cookie';
 const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 const api = axios.create({
@@ -33,18 +32,10 @@ export const fetchTransactions = async () => {
 // Add single transaction API method
 export const addSingleTransaction = async (transactionData) => {
   try {
-    // Get token from cookie client-side if available
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth_token='))
-      ?.split('=')[1];
       
     const headers = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
     
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/transactions/single`, {
+    const response = await fetch(`/api/transactions/single`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -69,21 +60,13 @@ export const addSingleTransaction = async (transactionData) => {
 // Add return document API methods
 export const fetchReturns = async () => {
   try {
-    // Get token from cookie client-side if available
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth_token='))
-      ?.split('=')[1];
       
     const headers = {
       'Content-Type': 'application/json'
     };
     
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
     
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/returns`, {
+    const response = await fetch(`/api/returns`, {
       headers,
       credentials: 'include'
     });
@@ -103,21 +86,13 @@ export const fetchReturns = async () => {
 export const createReturn = async (returnData) => {
   try {
   
-    // Get token from cookie client-side if available
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth_token='))
-      ?.split('=')[1];
       
     const headers = {
       'Content-Type': 'application/json'
     };
     
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
     
-    const response = await fetch(`${backendUrl}/api/returns`, {
+    const response = await fetch(`/api/returns`, {
       method: 'POST',
       headers,
       body: JSON.stringify(returnData),
@@ -138,21 +113,13 @@ export const createReturn = async (returnData) => {
 
 export const updateReturn = async (id, returnData) => {
   try {
-    // Get token from cookie client-side if available
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth_token='))
-      ?.split('=')[1];
       
     const headers = {
       'Content-Type': 'application/json'
     };
     
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
     
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/returns/${id}`, {
+    const response = await fetch(`/api/returns/${id}`, {
       method: 'PUT',
       headers,
       body: JSON.stringify(returnData),
@@ -173,21 +140,13 @@ export const updateReturn = async (id, returnData) => {
 
 export const deleteReturn = async (id) => {
   try {
-    // Get token from cookie client-side if available
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth_token='))
-      ?.split('=')[1];
       
     const headers = {
       'Content-Type': 'application/json'
     };
     
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
     
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/returns/${id}`, {
+    const response = await fetch(`/api/returns/${id}`, {
       method: 'DELETE',
       headers,
       credentials: 'include'
@@ -207,21 +166,13 @@ export const deleteReturn = async (id) => {
 
 export const fetchReturn = async (id) => {
   try {
-    // Get token from cookie client-side if available
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth_token='))
-      ?.split('=')[1];
       
     const headers = {
       'Content-Type': 'application/json'
     };
     
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
     
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/returns/${id}`, {
+    const response = await fetch(`/api/returns/${id}`, {
       headers,
       credentials: 'include'
     });
@@ -240,14 +191,6 @@ export const fetchReturn = async (id) => {
 
 // Fetches Teller Connect setup config (applicationId, environment, enrollmentId for update mode)
 export const fetchTellerEnrollmentConfig = async () => {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth_token='))
-    ?.split('=')[1];
-
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-
   const response = await fetch('/api/teller/enrollment-config', {
     credentials: 'include',
   });
@@ -273,19 +216,11 @@ export const fetchTellerEnrollmentConfig = async () => {
  */
 export const fetchTellerTransactionsWithAuth = async (options = {}) => {
   try {
-    // Get token from cookie client-side if available
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth_token='))
-      ?.split('=')[1];
 
     const headers = {
       'Content-Type': 'application/json'
     };
 
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
 
     const params = new URLSearchParams({ format: 'detailed' });
     if (options.all) {
@@ -320,16 +255,6 @@ export const fetchTellerTransactionsWithAuth = async (options = {}) => {
 //
 // Reviewed and deliberately not logged. The sync filters them out of future fetches so the
 // review queue converges on zero. Reversible — restoring puts them straight back.
-
-const authHeaders = () => {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth_token='))
-    ?.split('=')[1];
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return headers;
-};
 
 /**
  * Mark transactions as reviewed-and-dismissed so they stop appearing in the review list.
@@ -383,73 +308,8 @@ export const restoreIgnoredTransactions = async (ids) => {
   return await response.json();
 };
 
-// Server-side function to fetch returns with token
-export async function fetchReturnsServer(token) {
-  try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/returns`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      cache: 'no-store'
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch returns: ${response.status}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching returns server-side:', error);
-    throw error;
-  }
-}
 
-// Add server-side function to fetch a return with token
-export async function fetchReturnServer(id, token) {
-  try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/returns/${id}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      cache: 'no-store'
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch return: ${response.status}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching return server-side:', error);
-    throw error;
-  }
-}
 
-// Add server-side function to fetch transactions by IDs with token
-export async function fetchTransactionsByIdsServer(ids, token) {
-  try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/transactions/by-ids`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ ids }),
-      cache: 'no-store'
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch transactions: ${response.status}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching transactions by IDs server-side:', error);
-    throw error;
-  }
-}
 
 /**
  * Save transactions to the server
@@ -459,21 +319,13 @@ export async function fetchTransactionsByIdsServer(ids, token) {
 export const saveTransactions = async (transactionData) => {
   try {
     
-    // Get token from cookie client-side if available
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth_token='))
-      ?.split('=')[1];
       
     const headers = {
       'Content-Type': 'application/json'
     };
     
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
     
-    const response = await fetch(`${backendUrl}/api/transactions`, {
+    const response = await fetch(`/api/transactions`, {
       method: 'POST',
       headers,
       body: JSON.stringify(transactionData),
@@ -492,45 +344,18 @@ export const saveTransactions = async (transactionData) => {
   }
 };
 
-// Helper function to get token safely
-const getSafeToken = (serverToken = null) => {
-  // If token is provided (from server), use it
-  if (serverToken) return serverToken;
-  
-  // Otherwise check if we're in browser then get from cookie
-  if (typeof window !== 'undefined') {
-    return document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth_token='))
-      ?.split('=')[1];
-  }
-  
-  // If we're on server and no token was provided, return null
-  return null;
-};
-
 /**
  * Update multiple transactions at once
  * @param {Array} transactions - Array of transaction objects to update
  * @returns {Promise} - Response from the API
  */
 export const updateManyTransactions = async (transactions) => {
-  const token = Cookies.get('auth_token');
-  if (!token) {
-    token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth_token='))
-    ?.split('=')[1];
-
-    throw new Error('No authentication token found');
-  }
-
-  const response = await fetch(`${backendUrl}/api/transactions/update-many`, {
+  // Previously read auth_token from a cookie, declared it `const` and then reassigned it —
+  // a TypeError — inside a branch that threw unconditionally anyway. Now same-origin, with
+  // the httpOnly session cookie sent automatically.
+  const response = await fetch('/api/transactions/update-many', {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(transactions),
     credentials: 'include'
   });
@@ -560,21 +385,13 @@ export const updateTransaction = async (transaction) => {
 export const fetchReturnById = async (returnId) => {
   try {
     
-    // Get token from cookie client-side if available
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth_token='))
-      ?.split('=')[1];
       
     const headers = {
       'Content-Type': 'application/json'
     };
     
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
     
-    const response = await fetch(`${backendUrl}/api/returns/${returnId}`, {
+    const response = await fetch(`/api/returns/${returnId}`, {
       headers,
       credentials: 'include'
     });
@@ -599,22 +416,14 @@ export const fetchReturnById = async (returnId) => {
  */
 export const updateReturnDocumentById = async (returnId, returnData) => {
   try {    
-    // Get token from cookie client-side if available
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth_token='))
-      ?.split('=')[1];
       
     const headers = {
       'Content-Type': 'application/json'
     };
     
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
 
     
-    const response = await fetch(`${backendUrl}/api/returns/${returnId}`, {
+    const response = await fetch(`/api/returns/${returnId}`, {
       method: 'PUT',
       headers,
       body: JSON.stringify(returnData),
@@ -640,21 +449,13 @@ export const updateReturnDocumentById = async (returnId, returnData) => {
  */
 export const createReturnDocument = async (returnData) => {
   try {    
-    // Get token from cookie client-side if available
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth_token='))
-      ?.split('=')[1];
       
     const headers = {
       'Content-Type': 'application/json'
     };
     
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
     
-    const response = await fetch(`${backendUrl}/api/returns`, {
+    const response = await fetch(`/api/returns`, {
       method: 'POST',
       headers,
       body: JSON.stringify(returnData),
@@ -673,24 +474,16 @@ export const createReturnDocument = async (returnData) => {
   }
 };
 
-// Client-side function - uses document.cookie
+// Client-side function
 export const fetchMongoDBTransactions = async () => {
   try {
-    // Only use this in client components
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth_token='))
-      ?.split('=')[1];
       
     const headers = {
       'Content-Type': 'application/json'
     };
     
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
     
-    const response = await fetch(`${backendUrl}/api/transactions`, {
+    const response = await fetch(`/api/transactions`, {
       headers,
       credentials: 'include'
     });
@@ -707,133 +500,6 @@ export const fetchMongoDBTransactions = async () => {
   }
 };
 
-// Server-side function - receives token as parameter
-export const fetchMongoDBTransactionsServer = async (token) => {
-  try {
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-    
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    const response = await fetch(`${backendUrl}/api/transactions`, {
-      headers,
-      cache: 'no-store'
-    });
-
-    if (!response.ok) {
-      console.error(`Failed to fetch transactions: ${response.status} ${response.statusText}`);
-      return [];
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching transactions server-side:', error);
-    return [];
-  }
-};
-
-
-export const fetchAvailableReturns = async () => {
-  try {
-
-    const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth_token='))
-    ?.split('=')[1];
-    
-  const headers = {
-    'Content-Type': 'application/json'
-  };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  
-  const response = await fetch(`${backendUrl}/api/returns`, {
-    headers,
-    credentials: 'include'
-  });
-
-    if (!response.ok) {
-      console.error(`Failed to fetch returns: ${response.status} ${response.statusText}`);
-      return null;
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error fetching returns:', error);
-    return null;
-  }
-};
-
-/**
- * Fetch a single transaction by ID
- * @param {string} id - ID of the transaction to fetch
- * @returns {Promise} - Response from the API
- */
-export const fetchTransactionById = async (id) => {
-  try {
-    // Get token from cookie client-side if available
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth_token='))
-      ?.split('=')[1];
-      
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-    
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    const response = await fetch(`${backendUrl}/api/transactions/${id}`, {
-      headers,
-      credentials: 'include'
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || `Failed to fetch transaction ${id}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('API Error:', error);
-    throw error;
-  }
-};
-
-/**
- * Server-side function to fetch a transaction by ID with token
- * @param {string} id - ID of the transaction to fetch
- * @param {string} token - Authentication token
- * @returns {Promise} - Response from the API
- */
-export async function fetchTransactionByIdServer(id, token) {
-  try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/transactions/${id}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      cache: 'no-store'
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch transaction: ${response.status}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching transaction server-side:', error);
-    throw error;
-  }
-}
 
 /**
  * Fetch multiple transactions by their IDs
@@ -842,21 +508,13 @@ export async function fetchTransactionByIdServer(id, token) {
  */
 export const fetchTransactionsByIds = async (ids) => {
   try {
-    // Get token from cookie client-side if available
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth_token='))
-      ?.split('=')[1];
       
     const headers = {
       'Content-Type': 'application/json'
     };
     
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
     
-    const response = await fetch(`${backendUrl}/api/transactions/by-ids`, {
+    const response = await fetch(`/api/transactions/by-ids`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ ids }),
@@ -874,3 +532,30 @@ export const fetchTransactionsByIds = async (ids) => {
     throw error;
   }
 };
+
+/**
+ * Fetch all return documents for pickers and summaries.
+ *
+ * Restored after an over-broad edit removed it: these functions end with `};`, and the removal
+ * pattern was matching a bare `}`, so it swallowed more than it should have.
+ */
+export const fetchAvailableReturns = async () => {
+  try {
+    const response = await fetch('/api/returns', { credentials: 'include' });
+
+    if (!response.ok) {
+      console.error(`Failed to fetch returns: ${response.status} ${response.statusText}`);
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching returns:', error);
+    return null;
+  }
+};
+
+// NOTE: fetchTransactionById / fetchTransactionByIdServer are intentionally absent. They
+// called GET /api/transactions/:id, which the backend does not route — routes/transactions.js
+// only defines GET '/' and GET '/:year/:month', so a single-segment id never matched and the
+// call 404'd. Nothing imported them. Removed rather than carried forward broken.

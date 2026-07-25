@@ -1,15 +1,15 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import ReviewPageClient from '@/components/ReviewPageClient';
-import { fetchMongoDBTransactionsServer } from '@/services/api';
+import { fetchMongoDBTransactionsServer } from '@/lib/serverApi';
+import { getSessionToken } from '@/lib/backend';
 
 export default async function ReviewPage() {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
   
-  // Get the token from cookies for API requests
-  const cookieStore = await cookies();
-  const token = cookieStore.get('auth_token')?.value;
-  
+  // Session comes from the httpOnly NextAuth cookie, resolved server-side. The old
+  // `auth_token` cookie was readable by any script on the page and no longer exists.
+  const token = await getSessionToken();
   if (!token) {
     redirect('/');
   }
@@ -20,7 +20,7 @@ export default async function ReviewPage() {
   
   try {
     // Use the server-side function with the token
-    initialTransactions = await fetchMongoDBTransactionsServer(token);
+    initialTransactions = await fetchMongoDBTransactionsServer();
     
     // Similarly fetch returns if needed
     // initialReturns = await fetchReturnsServer(token);
@@ -33,7 +33,8 @@ export default async function ReviewPage() {
       const response = await fetch(`${backendUrl}/api/returns`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Internal-Secret': process.env.INTERNAL_API_SECRET
         },
         cache: 'no-store'
       });

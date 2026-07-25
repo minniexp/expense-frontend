@@ -102,6 +102,44 @@ export async function callBackend(path, options = {}) {
   return data;
 }
 
+/**
+ * The signed-in user's backend session token, read server-side from the httpOnly cookie.
+ *
+ * Server Components use this instead of reading an `auth_token` cookie, which no longer
+ * exists — it was readable by any script on the page, which made it stealable via XSS.
+ */
+export async function getSessionToken() {
+  const session = await getServerSession(authOptions);
+  return (session && session.accessToken) || null;
+}
+
+/**
+ * Forward a Route Handler request to the backend.
+ *
+ * One place where every proxied call gets the session token and the internal secret attached,
+ * so no individual route can forget one.
+ *
+ * @param {Request} request the incoming Route Handler request
+ * @param {string} backendPath path on the Express backend
+ * @param {object} [opts]
+ * @param {boolean} [opts.forwardBody] read and forward the JSON body (default: true for
+ *        methods that carry one)
+ * @param {number} [opts.successStatus] status to return on success
+ */
+export async function proxy(request, backendPath, opts = {}) {
+  const method = request.method;
+  const carriesBody = method !== 'GET' && method !== 'DELETE';
+  const { forwardBody = carriesBody, successStatus } = opts;
+
+  let body;
+  if (forwardBody) {
+    body = await request.json().catch(() => undefined);
+  }
+
+  const data = await callBackend(backendPath, { method, body });
+  return Response.json(data, successStatus ? { status: successStatus } : undefined);
+}
+
 /** Turn a BackendError into a Response, without leaking internals on unexpected failures. */
 export function errorResponse(err) {
   const status = err instanceof BackendError ? err.status : 500;

@@ -203,7 +203,6 @@ export default function PayeeSummary() {
         domain: window.location.hostname
       };
 
-      Cookies.remove('auth_token', options);
       Cookies.remove('next-auth.session-token', options);
       Cookies.remove('next-auth.csrf-token', options);
       Cookies.remove('next-auth.callback-url', options);

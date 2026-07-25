@@ -1,4 +1,4 @@
-import { errorResponse, BackendError } from '@/lib/backend';
+import { errorResponse, BackendError, getSessionToken } from '@/lib/backend';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,8 +17,12 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request) {
   try {
-    const { token } = await request.json().catch(() => ({}));
-    if (!token || typeof token !== 'string') {
+    // Client components no longer hold a token at all — the session lives in an httpOnly
+    // cookie they cannot read. So resolve it here. An explicit token is still accepted for
+    // callers that have one (the Next.js middleware).
+    const body = await request.json().catch(() => ({}));
+    const token = (typeof body.token === 'string' && body.token) || await getSessionToken();
+    if (!token) {
       return Response.json({ error: 'No token provided' }, { status: 401 });
     }
 

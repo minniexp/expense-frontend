@@ -18,17 +18,10 @@ export default function HomePage() {
     const syncSessionWithCookies = async () => {
       if (status === 'loading') return;
       
-      if (status === 'authenticated' && session?.accessToken && !Cookies.get('auth_token')) {
-        Cookies.set('auth_token', session.accessToken, { 
-          path: '/',
-          expires: 7, // 7 days
-          sameSite: 'lax'
-        });
-        
-        // Give time for the cookie to be set
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-      
+      // The session token used to be copied into a JavaScript-readable `auth_token` cookie so
+      // client code could attach it to API calls. Nothing reads it any more — every API call
+      // goes through a same-origin proxy that resolves the httpOnly session server-side — and
+      // a readable copy of a session token is exactly what XSS would steal.
       setSessionChecked(true);
     };
     
@@ -39,11 +32,10 @@ export default function HomePage() {
   useEffect(() => {
     if (!sessionChecked || redirectAttempted) return;
     
-    const hasAuthToken = !!Cookies.get('auth_token');
     const hasSessionToken = !!Cookies.get('next-auth.session-token');
-        
-    // Only redirect if we have the auth_token cookie or a valid session
-    if (!loading && ((hasAuthToken || hasSessionToken) || 
+
+    // Only redirect once a session is established
+    if (!loading && (hasSessionToken || 
         (status === 'authenticated' && session?.accessToken) || 
         user)) {
       console.log('Authentication confirmed, redirecting to summary');

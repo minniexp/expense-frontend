@@ -1,11 +1,12 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import ReturnManagementClient from '@/components/ReturnManagementClient';
+import { getSessionToken } from '@/lib/backend';
 
 export default async function ReturnPage() {
   // Server-side authentication check
   const cookieStore = await cookies();
-  const token = cookieStore.get('auth_token')?.value;
+  const token = await getSessionToken();
   
   if (!token) {
     // User not authenticated, redirect to login
@@ -20,7 +21,8 @@ export default async function ReturnPage() {
     const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/returns`, {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Internal-Secret': process.env.INTERNAL_API_SECRET
       },
       cache: 'no-store'
     });
