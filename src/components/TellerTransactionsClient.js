@@ -666,17 +666,16 @@ export default function ReviewPage() {
   
           <button
             onClick={() => handleFetchTellerTransactions()}
-            disabled={loading || isProduction}
+            disabled={loading}
             className={`
               font-bold py-2 px-4 rounded transition-colors duration-200
-              ${loading || isProduction
+              ${loading
                 ? 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-50'
                 : 'bg-purple-500 hover:bg-purple-700 text-white'
               }
             `}
-            title={isProduction ? 'Fetching transactions is disabled in production' : ''}
           >
-            {loading ? 'Fetching...' : isProduction ? 'Fetch Disabled in Production' : 'Fetch Teller Transactions'}
+            {loading ? 'Fetching...' : 'Fetch Teller Transactions'}
           </button>
           
           {transactions.length > 0 && (

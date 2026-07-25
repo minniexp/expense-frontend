@@ -74,7 +74,7 @@ export default function TellerLink({ onSuccess: onSuccessProp, disabled }) {
 
         setStatus('Reconnected to existing enrollment. Verifying with backend...');
         try {
-          const response = await fetch(`${backendUrl}/api/teller/enrollment`, {
+          const response = await fetch('/api/teller/enrollment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',

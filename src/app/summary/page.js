@@ -10,7 +10,8 @@ async function verifyUserToken(token) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'X-Internal-Secret': process.env.INTERNAL_API_SECRET
       },
       body: JSON.stringify({ token }),
       cache: 'no-store',

@@ -28,12 +28,22 @@ export async function middleware(request) {
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
     
     try {
+      // Middleware runs on the server, so it can hold the internal secret. /api/users/* now
+      // requires it — that endpoint family mints and validates sessions and must not be
+      // reachable from the open internet.
+      const internalSecret = process.env.INTERNAL_API_SECRET;
+      if (!internalSecret) {
+        console.error('INTERNAL_API_SECRET is not set — cannot verify session');
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+
       // Always verify token for protected routes
       const response = await fetch(`${backendUrl}/api/users/verify-token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'X-Internal-Secret': internalSecret,
         },
         body: JSON.stringify({ token }),
         cache: 'no-store',

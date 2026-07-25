@@ -6,7 +6,7 @@ async function verifyUserToken(token) {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
   
   try {
-    const response = await fetch(`${backendUrl}/api/users/verify-token`, {
+    const response = await fetch('/api/auth/verify-session', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

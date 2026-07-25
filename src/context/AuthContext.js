@@ -107,7 +107,7 @@ export const AuthProvider = ({ children }) => {
 
   const verifyToken = async (token) => {
     try {
-      const response = await fetch(`${backendUrl}/api/users/verify-token`, {
+      const response = await fetch('/api/auth/verify-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

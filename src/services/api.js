@@ -20,15 +20,9 @@ export const fetchTransactions = async () => {
   }
 };
 
-export const fetchTellerTransactions = async () => {
-  try {
-    const response = await api.get('/api/teller/transactions');
-    return response.data;
-  } catch (error) {
-    console.error('API Error:', error);
-    throw error;
-  }
-};
+// NOTE: removed. It called the backend host directly, which the browser can no longer do —
+// /api/teller/* now requires the server-only internal secret. Use
+// fetchTellerTransactionsWithAuth(), which goes through the Next.js proxy.
 
 // export const fetchMonthTransactions = async (month) => {
 //   const year = new Date().getFullYear();
@@ -254,8 +248,7 @@ export const fetchTellerEnrollmentConfig = async () => {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/teller/enrollment-config`, {
-    headers,
+  const response = await fetch('/api/teller/enrollment-config', {
     credentials: 'include',
   });
 
@@ -301,10 +294,11 @@ export const fetchTellerTransactionsWithAuth = async (options = {}) => {
       params.set('days', String(options.days));
     }
 
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/teller/transactions?${params}`,
-      { headers, credentials: 'include' }
-    );
+    // Same-origin Next.js route handler, not the backend directly. The server attaches the
+    // session token and the internal secret; neither is ever exposed to this code.
+    const response = await fetch(`/api/teller/transactions?${params}`, {
+      credentials: 'include',
+    });
 
     if (!response.ok) {
       const error = await response.json();
@@ -344,9 +338,9 @@ const authHeaders = () => {
  * @param {string} [note] optional reason, applied to all of them
  */
 export const ignoreTransactions = async (transactions, note = '') => {
-  const response = await fetch(`${backendUrl}/api/teller/ignored`, {
+  const response = await fetch('/api/teller/ignored', {
     method: 'POST',
-    headers: authHeaders(),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ transactions, note }),
     credentials: 'include',
   });
@@ -360,8 +354,7 @@ export const ignoreTransactions = async (transactions, note = '') => {
 
 /** List everything dismissed so far, newest first. */
 export const fetchIgnoredTransactions = async () => {
-  const response = await fetch(`${backendUrl}/api/teller/ignored`, {
-    headers: authHeaders(),
+  const response = await fetch('/api/teller/ignored', {
     credentials: 'include',
   });
 
@@ -376,9 +369,9 @@ export const fetchIgnoredTransactions = async () => {
 export const restoreIgnoredTransactions = async (ids) => {
   // POST rather than DELETE: a DELETE body is legal but some proxies strip it, which would
   // make restore a silent no-op in production while working fine locally.
-  const response = await fetch(`${backendUrl}/api/teller/ignored/restore`, {
+  const response = await fetch('/api/teller/ignored/restore', {
     method: 'POST',
-    headers: authHeaders(),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids }),
     credentials: 'include',
   });
