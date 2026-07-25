@@ -31,6 +31,9 @@ export default function ReviewPage() {
     const [ignoring, setIgnoring] = useState(false);
     const [ignoredList, setIgnoredList] = useState(null); // null = panel closed
     const [ignoredLoading, setIgnoredLoading] = useState(false);
+    // Held in component state rather than collected via window.prompt, so that a failed
+    // request does not throw away what was typed.
+    const [ignoreNote, setIgnoreNote] = useState('');
   
     // Get unique categories from transactions
     const categories = ['all', ...new Set(transactions.map(t => t.category))].filter(Boolean);
@@ -478,16 +481,11 @@ export default function ReviewPage() {
       );
       if (!proceed) return;
 
-      const note = window.prompt(
-        'Optional note — why are you ignoring these? (leave blank to skip)',
-        ''
-      );
-      // prompt() returns null on Cancel; treat that as "no note", not as an abort.
-
       try {
         setIgnoring(true);
-        const result = await ignoreTransactions(selectedVisible, note || '');
+        const result = await ignoreTransactions(selectedVisible, ignoreNote.trim());
         setSelectedTransactions(new Set());
+        setIgnoreNote(''); // cleared only on success — a failed attempt keeps what was typed
         alert(
           `${result.newlyIgnored} transaction(s) ignored` +
           (result.alreadyIgnored ? `, ${result.alreadyIgnored} already were.` : '.')
@@ -496,7 +494,12 @@ export default function ReviewPage() {
         if (ignoredList !== null) await loadIgnored();
       } catch (error) {
         console.error('Error ignoring transactions:', error);
-        alert('Failed to ignore transactions: ' + error.message);
+        alert(
+          `Failed to ignore transactions: ${error.message}\n\n` +
+          'Nothing was changed and your note has been kept, so you can retry. ' +
+          'If this says something "is not a function", the dev server is serving a stale ' +
+          'bundle — restart it and reload.'
+        );
       } finally {
         setIgnoring(false);
       }
@@ -801,6 +804,30 @@ export default function ReviewPage() {
                   </tbody>
                 </table>
               </div>
+            )}
+          </div>
+        )}
+
+        {selectedVisibleCount > 0 && (
+          <div className="mb-4 flex items-center gap-2 flex-wrap">
+            <label htmlFor="ignore-note" className="text-sm text-gray-300 whitespace-nowrap">
+              Note for “Ignore” (optional):
+            </label>
+            <input
+              id="ignore-note"
+              type="text"
+              value={ignoreNote}
+              onChange={(e) => setIgnoreNote(e.target.value)}
+              placeholder="e.g. logged manually, or not my spending"
+              className="bg-gray-700 text-white rounded px-3 py-1 border border-gray-600 flex-1 min-w-[240px] text-sm"
+            />
+            {ignoreNote && (
+              <button
+                onClick={() => setIgnoreNote('')}
+                className="text-gray-400 hover:text-white text-sm"
+              >
+                Clear
+              </button>
             )}
           </div>
         )}
