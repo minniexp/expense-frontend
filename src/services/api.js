@@ -322,6 +322,74 @@ export const fetchTellerTransactionsWithAuth = async (options = {}) => {
   }
 };
 
+// --- Dismissed ("ignored") Teller transactions -------------------------------------------
+//
+// Reviewed and deliberately not logged. The sync filters them out of future fetches so the
+// review queue converges on zero. Reversible — restoring puts them straight back.
+
+const authHeaders = () => {
+  const token = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth_token='))
+    ?.split('=')[1];
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+};
+
+/**
+ * Mark transactions as reviewed-and-dismissed so they stop appearing in the review list.
+ * This does NOT log them — they contribute nothing to totals, returns or points.
+ * @param {Array} transactions full transaction objects (a snapshot is stored for the audit list)
+ * @param {string} [note] optional reason, applied to all of them
+ */
+export const ignoreTransactions = async (transactions, note = '') => {
+  const response = await fetch(`${backendUrl}/api/teller/ignored`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ transactions, note }),
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || 'Failed to ignore transactions');
+  }
+  return await response.json();
+};
+
+/** List everything dismissed so far, newest first. */
+export const fetchIgnoredTransactions = async () => {
+  const response = await fetch(`${backendUrl}/api/teller/ignored`, {
+    headers: authHeaders(),
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || 'Failed to fetch ignored transactions');
+  }
+  return await response.json();
+};
+
+/** Put dismissed transactions back into the review queue. */
+export const restoreIgnoredTransactions = async (ids) => {
+  // POST rather than DELETE: a DELETE body is legal but some proxies strip it, which would
+  // make restore a silent no-op in production while working fine locally.
+  const response = await fetch(`${backendUrl}/api/teller/ignored/restore`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ ids }),
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || 'Failed to restore transactions');
+  }
+  return await response.json();
+};
+
 // Server-side function to fetch returns with token
 export async function fetchReturnsServer(token) {
   try {

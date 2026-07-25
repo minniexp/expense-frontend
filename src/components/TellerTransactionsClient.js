@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchTellerTransactionsWithAuth, saveTransactions } from '@/services/api';
+import {
+  fetchTellerTransactionsWithAuth,
+  saveTransactions,
+  ignoreTransactions,
+  fetchIgnoredTransactions,
+  restoreIgnoredTransactions,
+} from '@/services/api';
 import TellerLink from '@/components/TellerLink';
 
 export default function ReviewPage() {
@@ -20,6 +26,11 @@ export default function ReviewPage() {
     // permanently skipped by narrowing it, and widening it re-surfaces everything inside.
     const [lookback, setLookback] = useState('90');
     const [summary, setSummary] = useState(null);
+    // Dismissed transactions: reviewed, deliberately not logged, filtered out of future
+    // fetches by the backend. Kept reversible — this panel is how you undo one.
+    const [ignoring, setIgnoring] = useState(false);
+    const [ignoredList, setIgnoredList] = useState(null); // null = panel closed
+    const [ignoredLoading, setIgnoredLoading] = useState(false);
   
     // Get unique categories from transactions
     const categories = ['all', ...new Set(transactions.map(t => t.category))].filter(Boolean);
@@ -443,29 +454,79 @@ export default function ReviewPage() {
       setSelectedTransactions(new Set());
     };
   
-    const handleRemoveSelected = () => {
+    /**
+     * Mark the selected rows as reviewed-and-dismissed.
+     *
+     * This is NOT saving them: nothing is added to the ledger, and they contribute nothing to
+     * totals, returns or points. It records "I looked at this and I don't want it", which the
+     * backend then filters out of every future fetch — otherwise the self-healing diff would
+     * keep re-offering them forever.
+     *
+     * Reversible: "Ignored" below lists everything dismissed and restores it in one click.
+     */
+    const handleIgnoreSelected = async () => {
       if (selectedVisibleCount === 0) {
-        alert('Please select transactions to remove');
+        alert('Please select transactions to ignore');
         return;
       }
 
-      // "Remove" only drops rows from this session's list — it deletes nothing and saves
-      // nothing. Anything removed here reappears on the next fetch, because the backend
-      // decides what is outstanding by comparing against MongoDB, not against this view.
-      const confirmDelete = window.confirm(
-        `Remove ${selectedVisibleCount} transaction(s) from this list?\n\n` +
-        'This only clears them from the current view — nothing is deleted, and they will ' +
-        'appear again next time you fetch until you save them.'
+      const proceed = window.confirm(
+        `Ignore ${selectedVisibleCount} transaction(s)?\n\n` +
+        'They will NOT be saved to your ledger — this just marks them as reviewed so they ' +
+        'stop appearing here on future fetches.\n\n' +
+        'You can undo this any time from the "Ignored" panel.'
       );
+      if (!proceed) return;
 
-      if (confirmDelete) {
-        const removeIds = new Set(selectedVisible.map(t => t.tellerTransactionId));
-        setTransactions(prevTransactions =>
-          prevTransactions.filter(transaction =>
-            !removeIds.has(transaction.tellerTransactionId)
-          )
+      const note = window.prompt(
+        'Optional note — why are you ignoring these? (leave blank to skip)',
+        ''
+      );
+      // prompt() returns null on Cancel; treat that as "no note", not as an abort.
+
+      try {
+        setIgnoring(true);
+        const result = await ignoreTransactions(selectedVisible, note || '');
+        setSelectedTransactions(new Set());
+        alert(
+          `${result.newlyIgnored} transaction(s) ignored` +
+          (result.alreadyIgnored ? `, ${result.alreadyIgnored} already were.` : '.')
         );
-        setSelectedTransactions(new Set()); // Clear selections after removal
+        await handleFetchTellerTransactions();
+        if (ignoredList !== null) await loadIgnored();
+      } catch (error) {
+        console.error('Error ignoring transactions:', error);
+        alert('Failed to ignore transactions: ' + error.message);
+      } finally {
+        setIgnoring(false);
+      }
+    };
+
+    const loadIgnored = async () => {
+      try {
+        setIgnoredLoading(true);
+        const data = await fetchIgnoredTransactions();
+        setIgnoredList(data.ignored || []);
+      } catch (error) {
+        console.error('Error loading ignored transactions:', error);
+        alert('Failed to load ignored transactions: ' + error.message);
+      } finally {
+        setIgnoredLoading(false);
+      }
+    };
+
+    const handleRestoreIgnored = async (ids) => {
+      if (!ids.length) return;
+      try {
+        setIgnoredLoading(true);
+        await restoreIgnoredTransactions(ids);
+        await loadIgnored();
+        await handleFetchTellerTransactions();
+      } catch (error) {
+        console.error('Error restoring transactions:', error);
+        alert('Failed to restore: ' + error.message);
+      } finally {
+        setIgnoredLoading(false);
       }
     };
   
@@ -484,6 +545,10 @@ export default function ReviewPage() {
               <div>
                 <div className="text-gray-400 text-xs uppercase tracking-wide">Already logged</div>
                 <div className="text-2xl font-bold text-gray-300">{summary.alreadyLogged}</div>
+              </div>
+              <div>
+                <div className="text-gray-400 text-xs uppercase tracking-wide">Ignored</div>
+                <div className="text-2xl font-bold text-amber-300">{summary.ignored ?? 0}</div>
               </div>
               <div>
                 <div className="text-gray-400 text-xs uppercase tracking-wide">Excluded (payments)</div>
@@ -563,6 +628,14 @@ export default function ReviewPage() {
               <option value="all">All history (slow)</option>
             </select>
           </div>
+          <button
+            onClick={() => (ignoredList === null ? loadIgnored() : setIgnoredList(null))}
+            className="text-sm text-amber-300 hover:text-amber-200 underline"
+          >
+            {ignoredList === null ? 'Show ignored' : 'Hide ignored'}
+            {summary?.totalIgnored ? ` (${summary.totalIgnored})` : ''}
+          </button>
+
           {lookback === 'all' && (
             <span className="text-xs text-amber-400 max-w-xl">
               All-history pages back through every account and takes ~30s. Chase may rate-limit
@@ -626,15 +699,16 @@ export default function ReviewPage() {
               </button>
   
               <button
-                onClick={handleRemoveSelected}
-                disabled={selectedTransactions.size === 0}
+                onClick={handleIgnoreSelected}
+                disabled={ignoring || selectedVisibleCount === 0}
+                title="Mark as reviewed and stop showing them. Does not save them. Reversible."
                 className={`${
-                  selectedTransactions.size === 0
+                  selectedVisibleCount === 0
                     ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-red-700 hover:bg-red-800'
+                    : 'bg-amber-600 hover:bg-amber-700'
                 } text-white font-bold py-2 px-4 rounded`}
               >
-                Remove Selected ({selectedVisibleCount})
+                {ignoring ? 'Ignoring...' : `Ignore Selected (${selectedVisibleCount})`}
               </button>
   
               <button
@@ -651,6 +725,85 @@ export default function ReviewPage() {
             </>
           )}
         </div>
+
+        {ignoredList !== null && (
+          <div className="mb-4 bg-gray-900 border border-amber-700/50 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-white font-bold">
+                Ignored transactions ({ignoredList.length})
+              </h2>
+              {ignoredList.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (window.confirm(
+                      `Restore all ${ignoredList.length} ignored transaction(s) to the review list?`
+                    )) {
+                      handleRestoreIgnored(ignoredList.map(i => i.tellerTransactionId));
+                    }
+                  }}
+                  disabled={ignoredLoading}
+                  className="text-sm text-blue-400 hover:text-blue-300 underline"
+                >
+                  Restore all
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mb-3">
+              Reviewed and deliberately not logged. These are filtered out of every fetch, and
+              they are <span className="text-white">not</span> part of your ledger — they count
+              toward no totals, returns or points. Restoring one puts it straight back in the
+              review list.
+            </p>
+
+            {ignoredLoading ? (
+              <div className="text-gray-400 text-sm">Loading...</div>
+            ) : ignoredList.length === 0 ? (
+              <div className="text-gray-400 text-sm">
+                Nothing ignored yet. Select rows above and press “Ignore Selected” to dismiss
+                transactions you never want to log.
+              </div>
+            ) : (
+              <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                <table className="min-w-full text-white text-sm">
+                  <thead className="bg-gray-800 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-1 text-left">Date</th>
+                      <th className="px-3 py-1 text-right">Amount</th>
+                      <th className="px-3 py-1 text-left">Card</th>
+                      <th className="px-3 py-1 text-left">Description</th>
+                      <th className="px-3 py-1 text-left">Note</th>
+                      <th className="px-3 py-1"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ignoredList.map(item => (
+                      <tr key={item.tellerTransactionId} className="border-t border-gray-700">
+                        <td className="px-3 py-1 whitespace-nowrap">{item.date || '-'}</td>
+                        <td className="px-3 py-1 text-right whitespace-nowrap">
+                          {typeof item.amount === 'number'
+                            ? `$${Math.abs(item.amount).toFixed(2)}`
+                            : '-'}
+                        </td>
+                        <td className="px-3 py-1 whitespace-nowrap">{item.paymentMethod || '-'}</td>
+                        <td className="px-3 py-1 text-xs">{item.description || '-'}</td>
+                        <td className="px-3 py-1 text-xs text-gray-400">{item.note || ''}</td>
+                        <td className="px-3 py-1 text-right">
+                          <button
+                            onClick={() => handleRestoreIgnored([item.tellerTransactionId])}
+                            disabled={ignoredLoading}
+                            className="text-blue-400 hover:text-blue-300 underline whitespace-nowrap"
+                          >
+                            Restore
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
         {selectedVisibleDuplicates > 0 && (
           <div className="mb-4 text-sm text-amber-400">
