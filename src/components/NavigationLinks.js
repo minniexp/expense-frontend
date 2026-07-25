@@ -49,6 +49,14 @@ export default function NavigationLinks() {
         </Link>
         
         <Link 
+          href="/trips" 
+          className="bg-teal-500 hover:bg-teal-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-between"
+        >
+          <span>Trips &amp; Expense Splitter</span>
+          <span className="text-xl">→</span>
+        </Link>
+
+        <Link 
           href="/return" 
           className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-between"
         >

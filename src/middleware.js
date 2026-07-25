@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
 // Define routes that require advanced access
-const advancedRoutes = ['/my', '/return', '/add', '/navigation', '/teller', '/test'];
+const advancedRoutes = ['/my', '/return', '/add', '/navigation', '/teller', '/test', '/trips'];
 
 // Define routes that can be accessed by both simple and advanced users
 const protectedRoutes = ['/user', '/summary', ...advancedRoutes];
@@ -93,6 +93,7 @@ export const config = {
     '/add/:path*',
     '/navigation/:path*',
     '/teller/:path*',
+    '/trips/:path*',
     '/test/:path*',
     '/summary/:path*',
   ],

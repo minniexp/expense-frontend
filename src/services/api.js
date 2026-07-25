@@ -559,3 +559,52 @@ export const fetchAvailableReturns = async () => {
 // called GET /api/transactions/:id, which the backend does not route — routes/transactions.js
 // only defines GET '/' and GET '/:year/:month', so a single-segment id never matched and the
 // call 404'd. Nothing imported them. Removed rather than carried forward broken.
+
+// ---------------------------------------------------------------------------
+// Trip expense splitter
+// ---------------------------------------------------------------------------
+// All same-origin through the Next.js proxy: no credential is held here.
+// Amounts cross this boundary in DOLLARS. The backend converts to integer cents
+// and does every calculation there — see services/expenseSplitter.js.
+
+const tripFetch = async (path, options = {}) => {
+  const res = await fetch(`/api/trips${path}`, {
+    ...options,
+    headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
+    body: options.body ? JSON.stringify(options.body) : undefined,
+    credentials: 'include',
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || data.error || `Request failed (${res.status})`);
+  return data;
+};
+
+// Roster
+export const fetchTripMembers = (includeArchived = false) =>
+  tripFetch(`/members${includeArchived ? '?includeArchived=true' : ''}`);
+export const createTripMember = (member) => tripFetch('/members', { method: 'POST', body: member });
+export const updateTripMember = (id, patch) => tripFetch(`/members/${id}`, { method: 'PUT', body: patch });
+export const deleteTripMember = (id) => tripFetch(`/members/${id}`, { method: 'DELETE' });
+
+// Trips
+export const fetchTrips = () => tripFetch('');
+export const createTrip = (trip) => tripFetch('', { method: 'POST', body: trip });
+export const updateTrip = (id, patch) => tripFetch(`/${id}`, { method: 'PUT', body: patch });
+export const deleteTrip = (id) => tripFetch(`/${id}`, { method: 'DELETE' });
+
+/** Everything a trip page needs in one request: totals, balances, transfers, expenses, settlements. */
+export const fetchTripSummary = (id) => tripFetch(`/${id}/summary`);
+
+// Expenses
+export const createTripExpense = (tripId, expense) =>
+  tripFetch(`/${tripId}/expenses`, { method: 'POST', body: expense });
+export const updateTripExpense = (tripId, expenseId, patch) =>
+  tripFetch(`/${tripId}/expenses/${expenseId}`, { method: 'PUT', body: patch });
+export const deleteTripExpense = (tripId, expenseId) =>
+  tripFetch(`/${tripId}/expenses/${expenseId}`, { method: 'DELETE' });
+
+// Settlements (partial amounts are expected, not exceptional)
+export const createTripSettlement = (tripId, settlement) =>
+  tripFetch(`/${tripId}/settlements`, { method: 'POST', body: settlement });
+export const deleteTripSettlement = (tripId, settlementId) =>
+  tripFetch(`/${tripId}/settlements/${settlementId}`, { method: 'DELETE' });
