@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import PayeeSummary from '@/components/PayeeSummary';
+import { getSessionToken } from '@/lib/backend';
 
 async function verifyUserToken(token) {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -10,7 +11,8 @@ async function verifyUserToken(token) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'X-Internal-Secret': process.env.INTERNAL_API_SECRET
       },
       body: JSON.stringify({ token }),
       cache: 'no-store',
@@ -35,7 +37,8 @@ async function fetchReturnsServerSide(token) {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'X-Internal-Secret': process.env.INTERNAL_API_SECRET
       },
       cache: 'no-store',
     });
@@ -56,7 +59,7 @@ export default async function SummaryPage() {
   // Server-side authentication check
   const cookieStore = await cookies();
   
-  let token = cookieStore.get('auth_token')?.value;
+  let token = await getSessionToken();
   if (!token) {
     token = cookieStore.get('next-auth.session-token')?.value;
   }

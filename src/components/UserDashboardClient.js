@@ -9,7 +9,6 @@ export default function UserDashboardClient({ user }) {
 
   const handleLogout = async () => {
     // Remove cookies
-    Cookies.remove('auth_token');
     
     // Sign out from NextAuth - this destroys the session
     await signOut({ redirect: false });

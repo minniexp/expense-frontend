@@ -5,8 +5,6 @@ export async function POST() {
   // Get the cookies store
   const cookieStore = cookies();
   
-  // Delete auth_token cookie if it exists
-  cookieStore.delete('auth_token');
   
   // Also delete NextAuth cookies
   cookieStore.delete('next-auth.session-token');

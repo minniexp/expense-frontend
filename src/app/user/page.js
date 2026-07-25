@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import UserDashboardClient from '@/components/UserDashboardClient';
 import { redirect } from 'next/navigation';
+import { getSessionToken } from '@/lib/backend';
 
 async function verifyUserToken(token) {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -10,7 +11,8 @@ async function verifyUserToken(token) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'X-Internal-Secret': process.env.INTERNAL_API_SECRET
       },
       body: JSON.stringify({ token }),
       cache: 'no-store',
@@ -31,7 +33,7 @@ export default async function UserDashboardPage() {
   // Get the token from cookies using the new pattern
   const cookieStore = await cookies();
   // FIX: Check for auth_token first, then fall back to next-auth session token
-  let token = cookieStore.get('auth_token')?.value;
+  let token = await getSessionToken();
   
   // If auth_token is not found, try next-auth.session-token
   if (!token) {

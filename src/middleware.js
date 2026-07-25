@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
 // Define routes that require advanced access
 const advancedRoutes = ['/my', '/return', '/add', '/navigation', '/teller', '/test'];
@@ -16,24 +17,41 @@ export async function middleware(request) {
                           !pathname.includes('api/auth');
 
   if (isProtectedRoute) {
-    // Get auth token from cookies - check both possible tokens
-    let token = request.cookies.get('auth_token')?.value;
-    let sessionToken = request.cookies.get('next-auth.session-token')?.value;
+    // The backend session token now lives inside the httpOnly NextAuth session, decoded here
+    // with NEXTAUTH_SECRET. The old `auth_token` cookie is gone — it was readable by any
+    // script on the page, so an XSS could lift a working API credential straight out of it.
+    const nextAuthToken = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+      cookieName: 'next-auth.session-token', // must match the custom name in authOptions
+    });
 
-    if (!token && !sessionToken) {
-      console.log(`No auth tokens found, redirecting from ${pathname} to /`);
+    const token = nextAuthToken?.accessToken;
+
+    if (!token) {
+      console.log(`No session found, redirecting from ${pathname} to /`);
       return NextResponse.redirect(new URL('/', request.url));
     }
 
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
     
     try {
+      // Middleware runs on the server, so it can hold the internal secret. /api/users/* now
+      // requires it — that endpoint family mints and validates sessions and must not be
+      // reachable from the open internet.
+      const internalSecret = process.env.INTERNAL_API_SECRET;
+      if (!internalSecret) {
+        console.error('INTERNAL_API_SECRET is not set — cannot verify session');
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+
       // Always verify token for protected routes
       const response = await fetch(`${backendUrl}/api/users/verify-token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'X-Internal-Secret': internalSecret,
         },
         body: JSON.stringify({ token }),
         cache: 'no-store',

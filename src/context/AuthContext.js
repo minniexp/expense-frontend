@@ -23,15 +23,10 @@ export const AuthProvider = ({ children }) => {
         // Try different paths to find the token
         const token = session.accessToken || session.user?.token;
         
-        if (token) {          
-          // Set the cookie with explicit domain and path
-          Cookies.set('auth_token', token, { 
-            expires: 180,
-            path: '/',
-            sameSite: 'lax',
-            secure: process.env.NODE_ENV === 'production'
-          });
-          
+        if (token) {
+          // Deliberately NOT mirrored into a readable cookie. The session already lives in an
+          // httpOnly cookie the browser sends automatically; a JS-readable copy would just be
+          // an XSS target.
           try {
             await verifyToken(token);
             console.log("Token verified successfully");
@@ -45,25 +40,10 @@ export const AuthProvider = ({ children }) => {
         console.log("Session unauthenticated, clearing state");
         setUser(null);
         setLoading(false);
-        Cookies.remove('auth_token');
       } else if (status !== 'loading') {
-        // Try to verify existing token if present
-        const existingToken = Cookies.get('auth_token');
-        if (existingToken) {
-          console.log("Found existing auth_token, verifying");
-          try {
-            await verifyToken(existingToken);
-            console.log("Existing token verified successfully");
-          } catch (error) {
-            console.error("Failed to verify existing token:", error);
-            // Clear invalid token
-            Cookies.remove('auth_token');
-            setUser(null);
-          }
-        } else {
-          console.log("No auth token found");
-          setLoading(false);
-        }
+        // No NextAuth session: nothing to verify. There is no separate token to fall back to
+        // now that the readable cookie is gone.
+        setLoading(false);
       }
     };
 
@@ -72,17 +52,12 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (token) => {
     if (token) {
-      // Store token in cookie with 6-month expiration
-      Cookies.set('auth_token', token, { expires: 180 });
       await verifyToken(token);
     }
   };
 
   const logout = async () => {
     console.log("Logging out");
-    
-    // Remove auth_token cookie
-    Cookies.remove('auth_token');
     
     // Clear user state
     setUser(null);
@@ -107,7 +82,7 @@ export const AuthProvider = ({ children }) => {
 
   const verifyToken = async (token) => {
     try {
-      const response = await fetch(`${backendUrl}/api/users/verify-token`, {
+      const response = await fetch('/api/auth/verify-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -122,7 +97,6 @@ export const AuthProvider = ({ children }) => {
         
         if (response.status === 401) {
           // Token expired or invalid
-          Cookies.remove('auth_token');
           router.push('/');
           throw new Error('Session expired. Please log in again.');
         } else if (response.status === 404) {

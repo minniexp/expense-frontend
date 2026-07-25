@@ -1,13 +1,12 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import ReturnEditClient from '@/components/ReturnEditClient';
-import { fetchReturnServer, fetchTransactionsByIdsServer } from '@/services/api';
+import { fetchReturnServer, fetchTransactionsByIdsServer } from '@/lib/serverApi';
+import { getSessionToken } from '@/lib/backend';
 
 export default async function EditReturnPage({ params }) {
-  // Server-side authentication check
-  const cookieStore = await cookies();
-  const token = cookieStore.get('auth_token')?.value;
-  
+  // Server-side authentication check, from the httpOnly session cookie.
+  const token = await getSessionToken();
   if (!token) {
     // User not authenticated, redirect to login
     redirect('/');
@@ -21,11 +20,11 @@ export default async function EditReturnPage({ params }) {
   
   try {
     // Fetch the return document
-    returnData = await fetchReturnServer(returnId, token);
+    returnData = await fetchReturnServer(returnId);
     
     // If we have transaction IDs, fetch the associated transactions
     if (returnData.returnedTransactionIds && returnData.returnedTransactionIds.length > 0) {
-      transactions = await fetchTransactionsByIdsServer(returnData.returnedTransactionIds, token);
+      transactions = await fetchTransactionsByIdsServer(returnData.returnedTransactionIds);
     }
   } catch (error) {
     console.error('Error fetching return data:', error);

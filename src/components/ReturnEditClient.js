@@ -41,21 +41,13 @@ export default function ReturnEditClient({ returnId, initialReturnData, initialT
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
       
-      // Get token from cookie client-side if available
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('auth_token='))
-        ?.split('=')[1];
         
       const headers = {
         'Content-Type': 'application/json'
       };
       
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
       
-      const response = await fetch(`${backendUrl}/api/transactions/by-ids`, {
+      const response = await fetch(`/api/transactions/by-ids`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ ids: transactionIds }),
@@ -197,19 +189,11 @@ ${transaction.description}: ${formatCurrency(Math.abs(transaction.amount))}`)) {
       // Now update the transaction document to remove its returnId
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
       
-      // Get token from cookie client-side if available
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('auth_token='))
-        ?.split('=')[1];
         
       const headers = {
         'Content-Type': 'application/json'
       };
       
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
       
       // Clear the returnId and returned flag from the transaction
       const updatedTransaction = {
@@ -219,7 +203,7 @@ ${transaction.description}: ${formatCurrency(Math.abs(transaction.amount))}`)) {
       };
       
       // Update the transaction in the database
-      const transactionResponse = await fetch(`${backendUrl}/api/transactions/update-many`, {
+      const transactionResponse = await fetch(`/api/transactions/update-many`, {
         method: 'PUT',
         headers,
         body: JSON.stringify([updatedTransaction]),
