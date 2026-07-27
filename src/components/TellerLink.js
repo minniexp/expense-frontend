@@ -20,6 +20,9 @@ import { fetchTellerEnrollmentConfig } from '@/services/api';
  * server log. The one exception is a newly minted credential, which is useless unless the user
  * can copy it — that is shown once, behind an explicit reveal, and never logged.
  */
+// Teller's three environments. An enrollment lives in exactly one of them.
+const VALID_ENVIRONMENTS = ['sandbox', 'development', 'production'];
+
 export default function TellerLink({ onSuccess: onSuccessProp, disabled }) {
   const [config, setConfig] = useState(null);
   const [status, setStatus] = useState('Loading Teller configuration...');
@@ -36,7 +39,7 @@ export default function TellerLink({ onSuccess: onSuccessProp, disabled }) {
         if (!alive) return;
         setConfig(cfg);
         if (cfg.warnings && cfg.warnings.length) {
-          setStatus(`Configuration problem: ${cfg.warnings[0]}`);
+          setStatus('');
         } else if (!cfg.enrollmentId) {
           setStatus('No bank connected yet. Use “Connect a bank” to set one up.');
         } else {
@@ -81,7 +84,19 @@ export default function TellerLink({ onSuccess: onSuccessProp, disabled }) {
       return;
     }
     if (!config || !config.applicationId) {
-      setStatus('Teller is not configured on the server.');
+      setStatus('Teller is not configured on the server: TELLER_APPLICATION_ID is missing.');
+      return;
+    }
+    // Refuse rather than pass something Teller cannot use. Handing Connect an undefined or
+    // bogus environment produces its own opaque "Internal server error" page, which says
+    // nothing about the actual cause — a missing environment variable on the server.
+    if (!VALID_ENVIRONMENTS.includes(config.environment)) {
+      setStatus(
+        `Cannot open Teller Connect: the server reports environment `
+        + `"${config.environment ?? 'not set'}". TELLER_ENV must be one of `
+        + `${VALID_ENVIRONMENTS.join(', ')} on the backend — set it there and redeploy. `
+        + `Real bank data on an unbilled Teller application means "development".`
+      );
       return;
     }
     if (which === 'update' && !config.enrollmentId) {
@@ -149,7 +164,9 @@ export default function TellerLink({ onSuccess: onSuccessProp, disabled }) {
     window.TellerConnect.setup(options).open();
   }, [tellerLoaded, config, isConnected, notifyBackend, onSuccessProp]);
 
-  const ready = tellerLoaded && config && config.applicationId && !disabled;
+  const configOk = Boolean(config && config.applicationId
+    && VALID_ENVIRONMENTS.includes(config.environment));
+  const ready = tellerLoaded && configOk && !disabled;
   const hasExisting = Boolean(config?.enrollmentId);
 
   const btn = 'px-4 py-3 rounded font-bold text-base transition-colors duration-200 ' +
@@ -187,6 +204,37 @@ export default function TellerLink({ onSuccess: onSuccessProp, disabled }) {
           {isConnected && mode === 'new' ? 'Bank Connected' : 'Connect a Bank (New)'}
         </button>
       </div>
+
+      {config && !configOk && (
+        <div className="mt-3 bg-red-950/50 border border-red-700 rounded p-3">
+          <div className="font-bold text-red-300">Teller is not configured on the server</div>
+          <ul className="text-xs text-red-200/90 mt-1 list-disc pl-5 space-y-1">
+            {!config.applicationId && <li>TELLER_APPLICATION_ID is not set.</li>}
+            {!VALID_ENVIRONMENTS.includes(config.environment) && (
+              <li>
+                TELLER_ENV is <span className="font-bold">{config.environment ?? 'not set'}</span>.
+                It must be one of {VALID_ENVIRONMENTS.join(', ')}. For real bank data on a Teller
+                application without payment setup, the value is{' '}
+                <span className="font-bold">development</span>.
+              </li>
+            )}
+            {(config.warnings || []).map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+          <p className="text-xs text-red-200/70 mt-2">
+            Set it in the backend environment — locally in <code>.env</code>, and in the Vercel
+            backend project — then redeploy. Until then Teller Connect would fail with its own
+            unhelpful error.
+          </p>
+        </div>
+      )}
+
+      {config && configOk && (config.warnings || []).length > 0 && (
+        <div className="mt-3 bg-amber-950/50 border border-amber-700 rounded p-3">
+          <ul className="text-xs text-amber-200/90 list-disc pl-5 space-y-1">
+            {config.warnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      )}
 
       {status && <p className="text-sm text-gray-400 mt-2 break-words">{status}</p>}
 
