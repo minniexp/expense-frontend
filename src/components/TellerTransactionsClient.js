@@ -394,11 +394,22 @@ export default function ReviewPage() {
         setSelectedTransactions(new Set()); // stale ids must not survive a refetch
 
         if (data.length === 0) {
-          setStatement(
-            fetchSummary
-              ? `Nothing new — all ${fetchSummary.alreadyLogged} transactions in this window are already logged.`
-              : 'No new transactions found.'
-          );
+          if (fetchSummary) {
+            const bits = [];
+            if (fetchSummary.alreadyLogged) bits.push(`${fetchSummary.alreadyLogged} already saved`);
+            if (fetchSummary.ignored) bits.push(`${fetchSummary.ignored} ignored`);
+            if (fetchSummary.excluded) bits.push(`${fetchSummary.excluded} excluded as card payments/transfers`);
+            if (fetchSummary.outsideWindow) bits.push(`${fetchSummary.outsideWindow} older than this window`);
+            setStatement(
+              `Nothing new to review. Of ${fetchSummary.fetched} transactions Chase returned: `
+              + `${bits.join(', ')}.`
+              + (fetchSummary.outsideWindow
+                ? ' Looking for something older? Widen the look-back above.'
+                : '')
+            );
+          } else {
+            setStatement('No new transactions found.');
+          }
         } else {
           setStatement('Press Fetch Teller Transactions');
         }
@@ -548,6 +559,7 @@ export default function ReviewPage() {
               <div>
                 <div className="text-gray-400 text-xs uppercase tracking-wide">Already logged</div>
                 <div className="text-2xl font-bold text-gray-300">{summary.alreadyLogged}</div>
+                <div className="text-xs text-gray-500 mt-1">in your ledger</div>
               </div>
               <div>
                 <div className="text-gray-400 text-xs uppercase tracking-wide">Ignored</div>
@@ -560,6 +572,11 @@ export default function ReviewPage() {
               <div>
                 <div className="text-gray-400 text-xs uppercase tracking-wide">Outside window</div>
                 <div className="text-2xl font-bold text-gray-300">{summary.outsideWindow}</div>
+                {summary.outsideWindow > 0 && (
+                  <div className="text-xs text-blue-400 mt-1">
+                    older than {summary.windowStart}
+                  </div>
+                )}
               </div>
               {summary.possibleDuplicates > 0 && (
                 <div>
@@ -574,6 +591,27 @@ export default function ReviewPage() {
                 </div>
               )}
             </div>
+
+            {summary.outsideWindow > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-700 flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-gray-400">
+                  Can&apos;t find a transaction? {summary.outsideWindow} are older than{' '}
+                  {summary.windowStart}. Look back further:
+                </span>
+                {['180', '365', 'all'].map((w) => (
+                  w !== lookback && (
+                    <button
+                      key={w}
+                      onClick={() => { setLookback(w); handleFetchTellerTransactions(w); }}
+                      disabled={loading}
+                      className="text-xs bg-gray-700 hover:bg-gray-600 disabled:opacity-50 px-3 py-1.5 rounded"
+                    >
+                      {w === 'all' ? 'All history' : w === '365' ? '1 year' : '180 days'}
+                    </button>
+                  )
+                ))}
+              </div>
+            )}
 
             <div className="mt-3 text-xs text-gray-400">
               Scanned {summary.fetched} transactions from Chase
