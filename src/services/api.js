@@ -608,3 +608,27 @@ export const createTripSettlement = (tripId, settlement) =>
   tripFetch(`/${tripId}/settlements`, { method: 'POST', body: settlement });
 export const deleteTripSettlement = (tripId, settlementId) =>
   tripFetch(`/${tripId}/settlements/${settlementId}`, { method: 'DELETE' });
+
+/**
+ * Mark a return's payback confirmation.
+ *
+ * Sends only the flags being changed. The older pattern round-tripped the entire return
+ * document to flip one boolean, which meant a stale client copy could overwrite `total` or
+ * `returnedTransactionIds` with old values.
+ *
+ * @param {string} returnId
+ * @param {{payee?: boolean, lender?: boolean}} flags
+ */
+export const setReturnConfirmation = async (returnId, flags) => {
+  const response = await fetch(`/api/returns/${returnId}/confirmation`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(flags),
+    credentials: 'include',
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || data.error || 'Failed to update confirmation');
+  }
+  return data;
+};

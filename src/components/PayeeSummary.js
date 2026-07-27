@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { monthToReturnIdMap, MONTH_TO_RETURN_ID_MAP_2026 } from '@/utils/constants';
-import { fetchAvailableReturns, fetchMongoDBTransactions, fetchTransactionsByIds } from '@/services/api';
+import { fetchAvailableReturns, fetchMongoDBTransactions, fetchTransactionsByIds, setReturnConfirmation } from '@/services/api';
 import Cookies from 'js-cookie';
 
 export default function PayeeSummary() {
@@ -31,6 +31,93 @@ export default function PayeeSummary() {
   
   // Korea (Mom) return document ID
   const KOREA_RETURN_ID = '68ba19ebaf425ee291319a31';
+
+  // Which button is mid-save, so only that one shows a pending state.
+  const [confirming, setConfirming] = useState(null);
+
+  /**
+   * Record that the payback has been sent (or undo it).
+   *
+   * Only the two confirmation booleans are sent — never the whole return document. Round-
+   * tripping the document to flip one flag lets a stale client copy overwrite `total` or
+   * `returnedTransactionIds`, and those are money and transaction links.
+   *
+   * Local state is updated from the server's response rather than optimistically, so what is
+   * on screen is what was actually stored.
+   */
+  const handleConfirmation = async (returnDoc, role, nextValue, scope) => {
+    if (!returnDoc?._id) return;
+    const label = role === 'payee' ? 'payee' : 'lender';
+    if (!nextValue && !window.confirm(`Undo the ${label} confirmation for this payback?`)) return;
+
+    try {
+      setConfirming(returnDoc._id + role);
+      const updated = await setReturnConfirmation(returnDoc._id, { [role]: nextValue });
+      if (scope === 'korea') {
+        setKoreaData((prev) => (prev ? { ...prev, ...updated } : updated));
+      } else {
+        setMonthlyReturns((prev) => ({
+          ...prev,
+          [selectedMonth]: { ...prev[selectedMonth], ...updated },
+        }));
+      }
+    } catch (err) {
+      console.error('Error updating confirmation:', err);
+      alert(`Could not update: ${err.message}`);
+    } finally {
+      setConfirming(null);
+    }
+  };
+
+  /** Status badges plus the actions that change them. Shared by the monthly and Korea views. */
+  const renderStatus = (returnDoc, scope) => {
+    if (!returnDoc) return null;
+    const payeeDone = Boolean(returnDoc.paidBackConfirmationPayee);
+    const lenderDone = Boolean(returnDoc.paidBackConfirmationLender);
+    const busyPayee = confirming === returnDoc._id + 'payee';
+    const busyLender = confirming === returnDoc._id + 'lender';
+    const btn = 'px-4 py-3 rounded font-bold text-sm flex-1 min-w-[150px] disabled:opacity-50 ' +
+      'disabled:cursor-not-allowed';
+
+    return (
+      <div className="bg-gray-700 p-4 rounded-lg">
+        <h3 className="text-gray-400 text-sm mb-1">Status</h3>
+        <div className="flex gap-2 mt-1 flex-wrap">
+          <span className={`px-2 py-1 rounded text-sm ${
+            payeeDone ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-300'}`}>
+            {payeeDone ? 'Payee Confirmed' : 'Payee Pending'}
+          </span>
+          <span className={`px-2 py-1 rounded text-sm ${
+            lenderDone ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-300'}`}>
+            {lenderDone ? 'Lender Confirmed' : 'Lender Pending'}
+          </span>
+        </div>
+
+        <div className="mt-3 flex gap-2 flex-wrap">
+          <button
+            onClick={() => handleConfirmation(returnDoc, 'payee', !payeeDone, scope)}
+            disabled={busyPayee}
+            className={`${btn} ${payeeDone
+              ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 border border-gray-600'
+              : 'bg-green-600 hover:bg-green-700 text-white'}`}
+          >
+            {busyPayee ? 'Saving…' : payeeDone ? 'Undo sent payment' : '✓ Sent Payment'}
+          </button>
+
+          <button
+            onClick={() => handleConfirmation(returnDoc, 'lender', !lenderDone, scope)}
+            disabled={busyLender}
+            className={`${btn} bg-gray-700 hover:bg-gray-600 text-gray-300 border border-gray-600`}
+          >
+            {busyLender ? 'Saving…' : lenderDone ? 'Undo lender received' : 'Lender received'}
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          “Sent Payment” records that the payee has paid this back. Saved immediately.
+        </p>
+      </div>
+    );
+  };
 
   const monthNames = {
     1: 'January', 2: 'February', 3: 'March', 4: 'April',
@@ -388,25 +475,7 @@ export default function PayeeSummary() {
               </p>
             </div>
             
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <h3 className="text-gray-400 text-sm mb-1">Status</h3>
-              <div className="flex gap-2 mt-1">
-                <span className={`px-2 py-1 rounded text-sm ${
-                  monthlyReturns[selectedMonth].paidBackConfirmationPayee
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-600 text-gray-300'
-                }`}>
-                  {monthlyReturns[selectedMonth].paidBackConfirmationPayee ? 'Payee Confirmed' : 'Payee Pending'}
-                </span>
-                <span className={`px-2 py-1 rounded text-sm ${
-                  monthlyReturns[selectedMonth].paidBackConfirmationLender
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-600 text-gray-300'
-                }`}>
-                  {monthlyReturns[selectedMonth].paidBackConfirmationLender ? 'Lender Confirmed' : 'Lender Pending'}
-                </span>
-              </div>
-            </div>
+            {renderStatus(monthlyReturns[selectedMonth], 'month')}
           </div>
           
           {/* Transaction Count Summary */}
@@ -468,25 +537,7 @@ export default function PayeeSummary() {
               </p>
             </div>
             
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <h3 className="text-gray-400 text-sm mb-1">Status</h3>
-              <div className="flex gap-2 mt-1">
-                <span className={`px-2 py-1 rounded text-sm ${
-                  koreaData.paidBackConfirmationPayee
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-600 text-gray-300'
-                }`}>
-                  {koreaData.paidBackConfirmationPayee ? 'Payee Confirmed' : 'Payee Pending'}
-                </span>
-                <span className={`px-2 py-1 rounded text-sm ${
-                  koreaData.paidBackConfirmationLender
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-600 text-gray-300'
-                }`}>
-                  {koreaData.paidBackConfirmationLender ? 'Lender Confirmed' : 'Lender Pending'}
-                </span>
-              </div>
-            </div>
+            {renderStatus(koreaData, 'korea')}
           </div>
           
           {/* Transaction Count Summary */}

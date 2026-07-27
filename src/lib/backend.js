@@ -128,7 +128,7 @@ export async function getSessionToken() {
  */
 export async function proxy(request, backendPath, opts = {}) {
   const method = request.method;
-  const carriesBody = method !== 'GET' && method !== 'DELETE';
+  const carriesBody = !['GET', 'DELETE', 'HEAD'].includes(method);
   const { forwardBody = carriesBody, successStatus } = opts;
 
   let body;
