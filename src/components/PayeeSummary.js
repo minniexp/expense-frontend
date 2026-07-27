@@ -109,7 +109,7 @@ export default function PayeeSummary() {
         <p className="text-xs text-gray-500 mt-2">
           Press “Sent Payment” once the payee has actually paid this back. It records the
           payee confirmation and saves immediately — the badge above turns green only after
-          that.
+          that..
         </p>
       </div>
     );
