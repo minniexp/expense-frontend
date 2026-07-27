@@ -75,7 +75,6 @@ export default function PayeeSummary() {
     const payeeDone = Boolean(returnDoc.paidBackConfirmationPayee);
     const lenderDone = Boolean(returnDoc.paidBackConfirmationLender);
     const busyPayee = confirming === returnDoc._id + 'payee';
-    const busyLender = confirming === returnDoc._id + 'lender';
     const btn = 'px-4 py-3 rounded font-bold text-sm flex-1 min-w-[150px] disabled:opacity-50 ' +
       'disabled:cursor-not-allowed';
 
@@ -93,27 +92,24 @@ export default function PayeeSummary() {
           </span>
         </div>
 
-        <div className="mt-3 flex gap-2 flex-wrap">
+        <div className="mt-3">
+          {/* Payee only. The lender flag is shown as a badge above but is not editable here —
+              this page is the payee's view, and the lender confirming receipt is a separate
+              act by a different person. It remains editable on the Returns page. */}
           <button
             onClick={() => handleConfirmation(returnDoc, 'payee', !payeeDone, scope)}
             disabled={busyPayee}
-            className={`${btn} ${payeeDone
+            className={`${btn} w-full sm:w-auto ${payeeDone
               ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 border border-gray-600'
-              : 'bg-green-600 hover:bg-green-700 text-white'}`}
+              : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
           >
-            {busyPayee ? 'Saving…' : payeeDone ? 'Undo sent payment' : '✓ Sent Payment'}
-          </button>
-
-          <button
-            onClick={() => handleConfirmation(returnDoc, 'lender', !lenderDone, scope)}
-            disabled={busyLender}
-            className={`${btn} bg-gray-700 hover:bg-gray-600 text-gray-300 border border-gray-600`}
-          >
-            {busyLender ? 'Saving…' : lenderDone ? 'Undo lender received' : 'Lender received'}
+            {busyPayee ? 'Saving…' : payeeDone ? 'Undo sent payment' : 'Sent Payment'}
           </button>
         </div>
         <p className="text-xs text-gray-500 mt-2">
-          “Sent Payment” records that the payee has paid this back. Saved immediately.
+          Press “Sent Payment” once the payee has actually paid this back. It records the
+          payee confirmation and saves immediately — the badge above turns green only after
+          that.
         </p>
       </div>
     );
