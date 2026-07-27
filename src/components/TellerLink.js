@@ -11,7 +11,10 @@ export default function TellerLink({ onSuccess: onSuccessProp, disabled }) {
   const [config, setConfig] = useState(null);
   const [enrollmentResult, setEnrollmentResult] = useState(null);
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-  const isProduction = process.env.NEXT_PUBLIC_DEPLOYED_STAGE === 'production';
+  // Reconnect is deliberately NOT gated on the deployment stage. A Teller enrollment stops
+  // syncing periodically and must be re-authorised through Teller Connect; blocking that in
+  // production meant the one action that fixes a stalled connection was unavailable in the one
+  // place it matters.
 
   useEffect(() => {
     fetchTellerEnrollmentConfig()
@@ -113,9 +116,7 @@ export default function TellerLink({ onSuccess: onSuccessProp, disabled }) {
     else setStatus('Teller Connect is still loading...');
   }, [tellerConnect, config]);
 
-  const buttonLabel = isProduction
-    ? 'Bank Connection Disabled in Production'
-    : isConnected
+  const buttonLabel = isConnected
     ? 'Reconnected'
     : !config
     ? 'Loading...'
@@ -127,9 +128,9 @@ export default function TellerLink({ onSuccess: onSuccessProp, disabled }) {
     <div className="my-4">
       <button
         onClick={handleConnect}
-        disabled={!canReconnect || disabled || isProduction}
-        className={`px-4 py-2 rounded font-bold transition-colors duration-200 ${
-          !canReconnect || disabled || isProduction
+        disabled={!canReconnect || disabled}
+        className={`px-4 py-3 rounded font-bold text-base transition-colors duration-200 ${
+          !canReconnect || disabled
             ? 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-50'
             : 'bg-green-500 hover:bg-green-700 text-white'
         }`}

@@ -623,6 +623,27 @@ export default function ReviewPage() {
               {summary.malformed > 0 && ` ${summary.malformed} were unreadable and skipped.`}
             </div>
 
+            {summary.staleDays != null && summary.staleDays > 7 && (
+              <div className="mt-3 bg-amber-950/50 border border-amber-700 rounded p-3">
+                <div className="font-bold text-amber-300">
+                  ⚠ Your bank connection looks stale
+                </div>
+                <div className="text-xs text-amber-200/90 mt-1">
+                  The most recent transaction Chase has sent is{' '}
+                  <span className="font-bold">{summary.newestTransactionDate}</span> —{' '}
+                  {summary.staleDays} days ago. Anything more recent than that has not reached
+                  us, so it cannot appear here no matter how wide the look-back is.
+                  Use <span className="font-bold">Reconnect Bank</span> above to re-authorise
+                  the connection, then fetch again.
+                </div>
+                <div className="text-xs text-amber-200/70 mt-2">
+                  Newest per account:{' '}
+                  {(summary.accounts || []).filter((a) => a.newestDate)
+                    .map((a) => `${a.card} ${a.newestDate}`).join(' · ')}
+                </div>
+              </div>
+            )}
+
             {summary.truncatedAccounts?.length > 0 && (
               <div className="mt-2 text-xs text-amber-400">
                 ⚠ Coverage incomplete for: {summary.truncatedAccounts.join(', ')} — hit the
