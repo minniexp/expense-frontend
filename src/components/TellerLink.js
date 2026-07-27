@@ -27,7 +27,9 @@ export default function TellerLink({ onSuccess: onSuccessProp, disabled }) {
           );
           return;
         }
-        setStatus(`Ready to reconnect existing enrollment ${cfg.enrollmentId} (update mode)`);
+        setStatus(
+          `Ready to reconnect enrollment ${cfg.enrollmentId} in "${cfg.environment}" (update mode)`
+        );
       })
       .catch((err) => {
         console.error('Failed to load Teller config:', err);
