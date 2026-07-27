@@ -57,7 +57,9 @@ export default function TellerLink({ onSuccess: onSuccessProp, disabled }) {
     if (typeof window.TellerConnect !== 'undefined') { setTellerLoaded(true); return; }
     const script = document.createElement('script');
     script.src = 'https://cdn.teller.io/connect/connect.js';
-    script.async = true;
+    // Teller's guide is explicit: append at the end of body, and do NOT set async or defer.
+    // We were setting async = true, against their documented guidance.
+    script.async = false;
     script.onload = () => setTellerLoaded(true);
     document.body.appendChild(script);
   }, []);
@@ -112,6 +114,10 @@ export default function TellerLink({ onSuccess: onSuccessProp, disabled }) {
       applicationId: config.applicationId,
       environment: config.environment,
       products: ['transactions'],
+      // Default is "disabled", which enrols whatever the bank returns with no say in it.
+      // "multiple" lets all six Chase accounts be picked explicitly, which is both what we
+      // want and a step where a mismatch becomes visible rather than silent.
+      selectAccount: 'multiple',
       // Supplying an enrollment id is what makes this update mode. Omitting it creates a new
       // enrollment — which is the entire difference between the two buttons.
       ...(which === 'update' ? { enrollmentId: config.enrollmentId } : {}),
@@ -154,10 +160,12 @@ export default function TellerLink({ onSuccess: onSuccessProp, disabled }) {
       },
 
       onExit: () => setStatus((s) => (isConnected ? s : 'Teller Connect closed without finishing.')),
+      // NOTE: per Teller's guide, onFailure fires only for payee/payment failures — never for
+      // enrollment problems. Enrollment errors are shown inside Teller's own UI instead, which
+      // is why watching this callback never explained the connection failures.
       onFailure: (failure) => {
-        // Teller's own messages are the useful part; they name the actual misconfiguration.
         const detail = [failure?.type, failure?.code, failure?.message].filter(Boolean).join(' — ');
-        setStatus(`Teller Connect failed${detail ? `: ${detail}` : '.'}`);
+        setStatus(`Teller reported a failure${detail ? `: ${detail}` : '.'}`);
       },
     };
 
