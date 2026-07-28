@@ -140,6 +140,47 @@ export async function proxy(request, backendPath, opts = {}) {
   return Response.json(data, successStatus ? { status: successStatus } : undefined);
 }
 
+/**
+ * Call the backend WITHOUT a user session, forwarding a caller-supplied credential instead.
+ *
+ * Only for the ingest path. `callBackend()` resolves a NextAuth session and 401s without one,
+ * which is right for everything a browser does — but a phone posting a transaction has no
+ * session and should not be given one. It presents its own narrow, create-only token, which
+ * this forwards alongside the internal secret so the backend can validate both.
+ *
+ * The internal secret still never leaves the server.
+ */
+export async function callBackendAsService(path, { method = 'POST', body, bearer } = {}) {
+  if (!BACKEND_URL) throw new BackendError('Backend URL is not configured', 503);
+  const secret = requireInternalSecret();
+
+  const res = await fetch(`${BACKEND_URL}${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Internal-Secret': secret,
+      ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    cache: 'no-store',
+  });
+
+  const text = await res.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    throw new BackendError(`Backend returned a non-JSON response (HTTP ${res.status})`, 502);
+  }
+  if (!res.ok) {
+    throw new BackendError(
+      (data && (data.error || data.message)) || `Backend error (HTTP ${res.status})`,
+      res.status
+    );
+  }
+  return data;
+}
+
 /** Turn a BackendError into a Response, without leaking internals on unexpected failures. */
 export function errorResponse(err) {
   const status = err instanceof BackendError ? err.status : 500;
