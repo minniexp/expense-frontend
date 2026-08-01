@@ -18,8 +18,12 @@ function minutesIntoDay(time) {
   if (typeof time !== 'string') return -1;
   const match = /^(\d{1,2}):(\d{2})\s*([AP]M)/i.exec(time.trim());
   if (!match) return -1;
-  const hours = (Number(match[1]) % 12) + (/pm/i.test(match[3]) ? 12 : 0);
-  return hours * 60 + Number(match[2]);
+  // Range-check before the modulo: `hour % 12 > 11` can never be true, so "25:00 PM" would be
+  // silently reduced to 1 PM instead of rejected.
+  const rawHour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (rawHour < 1 || rawHour > 12 || minute > 59) return -1;
+  return ((rawHour % 12) + (/pm/i.test(match[3]) ? 12 : 0)) * 60 + minute;
 }
 
 export default function ReviewPage({initialTransactions, initialReturns}) {
