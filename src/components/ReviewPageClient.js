@@ -10,7 +10,10 @@ import { fetchMongoDBTransactions, fetchAvailableReturns, updateManyTransactions
 export default function ReviewPage({initialTransactions, initialReturns}) {
   const router = useRouter();
   const [transactions, setTransactions] = useState(initialTransactions);
-  const [loading, setLoading] = useState(true);
+  // Starts false: the rows arrive as props from the server, so there is nothing to wait for on
+  // mount. It used to start true and was only ever cleared at the end of an update, which left every
+  // button guarded by it permanently disabled until you happened to run an update first.
+  const [loading, setLoading] = useState(false);
   const [selectedTransactions, setSelectedTransactions] = useState(new Set());
   const [editingCell, setEditingCell] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState('all');
@@ -103,6 +106,8 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
     console.log('Selected transactions:', Array.from(selectedTransactions));
   }, [selectedTransactions]);
 
+  const deleteDisabled = loading || deleting || selectedTransactions.size === 0;
+
   /**
    * Open the delete confirmation.
    *
@@ -112,7 +117,12 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
    */
   const handleDeleteSelectedClick = () => {
     const rows = transactions.filter((t) => selectedTransactions.has(t._id));
-    if (rows.length === 0) return;
+    if (rows.length === 0) {
+      // Should be unreachable — the button is disabled with nothing selected — but say so rather
+      // than returning silently, which is indistinguishable from a broken button.
+      alert('Nothing selected to delete.');
+      return;
+    }
     setPendingDelete({
       rows,
       linkedToReturn: rows.filter((t) => t.returnId).length,
@@ -964,15 +974,14 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
               Create New Return Doc
             </button>
 
+            {/* One expression drives both `disabled` and the styling. Keeping them as two separate
+                conditions is what made this button look clickable while being inert. */}
             <button
               onClick={handleDeleteSelectedClick}
-              disabled={loading || deleting || selectedTransactions.size === 0}
+              disabled={deleteDisabled}
               className={`
-                font-bold py-2 px-4 rounded transition-colors duration-200
-                ${selectedTransactions.size === 0 || deleting
-                  ? 'bg-gray-400 cursor-not-allowed text-white'
-                  : 'bg-red-600 hover:bg-red-800 text-white'
-                }
+                font-bold py-2 px-4 rounded transition-colors duration-200 text-white
+                ${deleteDisabled ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-800'}
               `}
             >
               {selectedTransactions.size === 0
