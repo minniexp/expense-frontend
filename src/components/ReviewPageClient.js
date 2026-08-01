@@ -7,6 +7,21 @@ import "react-datepicker/dist/react-datepicker.css";
 import { PAYMENT_METHODS, CATEGORIES, PURCHASE_CATEGORIES, POINTS_OPTIONS, MONTH_NAMES } from '@/utils/constants';
 import { fetchMongoDBTransactions, fetchAvailableReturns, updateManyTransactions, createReturnDocument, fetchReturnById, updateReturnDocumentById, deleteTransactions } from '@/services/api';
 
+/**
+ * "8:51 PM ET" as minutes past midnight, for ordering rows within a day.
+ *
+ * Returns -1 when there is no usable time, which sorts those rows last under a descending
+ * comparison — a row that does not say when it happened should not outrank one that does. Rows
+ * from the bank feed have no time at all, so this is the common case, not an edge one.
+ */
+function minutesIntoDay(time) {
+  if (typeof time !== 'string') return -1;
+  const match = /^(\d{1,2}):(\d{2})\s*([AP]M)/i.exec(time.trim());
+  if (!match) return -1;
+  const hours = (Number(match[1]) % 12) + (/pm/i.test(match[3]) ? 12 : 0);
+  return hours * 60 + Number(match[2]);
+}
+
 export default function ReviewPage({initialTransactions, initialReturns}) {
   const router = useRouter();
   const [transactions, setTransactions] = useState(initialTransactions);
@@ -70,6 +85,15 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
         t.paymentMethod?.toLowerCase().includes(searchLower) ||
         amountStr.includes(searchTerm) // Add amount search
       );
+    })
+    // Newest first. There was no sort at all before, so rows appeared in whatever order the API
+    // happened to return them. `date` is YYYY-MM-DD, which compares correctly as a string.
+    .sort((a, b) => {
+      if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+      const byTime = minutesIntoDay(b.time) - minutesIntoDay(a.time);
+      if (byTime !== 0) return byTime;
+      // A stable last resort, so equal rows do not swap places between renders.
+      return String(b._id).localeCompare(String(a._id));
     });
 
   // Replace hardcoded arrays with imports
@@ -1449,6 +1473,7 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700"
                   />
                 </th>
+                <th className="px-4 py-2">Reviewed?</th>
                 <th className="px-4 py-2">Year</th>
                 <th className="px-4 py-2">MM</th>
                 <th className="px-4 py-2">DD</th>
@@ -1462,7 +1487,6 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
                 <th className="px-4 py-2">Transaction Type</th>
                 <th className="px-4 py-2">Return</th>
                 <th className="px-4 py-2">Returned</th>
-                <th className="px-4 py-2">Reviewed?</th>
                 <th className="px-4 py-2">Need To Be Paid Back</th>
                 <th className="px-4 py-2">Notes</th>
                 <th className="px-4 py-2">User ID</th>
@@ -1471,7 +1495,17 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
             </thead>
             <tbody>
               {filteredTransactions.map((transaction) => (
-                <tr key={transaction._id} className="border-t border-gray-700 hover:bg-gray-700">
+                <tr
+                  key={transaction._id}
+                  /* Unreviewed rows are the work still to do, so they keep full contrast and take a
+                     faint amber wash; reviewed ones fade back. Opacity rather than a colour swap so
+                     the amount's own red/green still reads. */
+                  className={`border-t border-gray-700 hover:bg-gray-700 transition-opacity ${
+                    transaction.reviewed
+                      ? 'opacity-50 hover:opacity-100'
+                      : 'bg-amber-500/10 border-l-2 border-l-amber-400'
+                  }`}
+                >
                   <td className="px-4 py-2">
                     <input
                       type="checkbox"
@@ -1479,6 +1513,11 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
                       onChange={() => handleCheckboxChange(transaction)}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700"
                     />
+                  </td>
+                  {/* Defaults to false rather than undefined: rows created before this column
+                      existed have no value, and the Yes/No editor reads value.toString(). */}
+                  <td className="px-4 py-2">
+                    {renderEditableCell(transaction, 'reviewed', transaction.reviewed ?? false)}
                   </td>
                   <td className="px-4 py-2">
                     {renderEditableCell(transaction, 'year', transaction.year)}
@@ -1522,11 +1561,6 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
                   </td>
                   <td className="px-4 py-2">
                     {renderEditableCell(transaction, 'returned', transaction.returned)}
-                  </td>
-                  {/* Defaults to false rather than undefined: rows created before this column
-                      existed have no value, and the Yes/No editor reads value.toString(). */}
-                  <td className="px-4 py-2">
-                    {renderEditableCell(transaction, 'reviewed', transaction.reviewed ?? false)}
                   </td>
                   <td className="px-4 py-2">
                     {renderEditableCell(transaction, 'needToBePaidback', transaction.needToBePaidback)}
