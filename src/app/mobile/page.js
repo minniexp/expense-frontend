@@ -50,11 +50,26 @@ export default async function MobileReviewPage() {
     console.error('Failed to resolve trip links', error);
   }
 
+  // The spending overview. Computed on the server because `accumulated` needs every transaction
+  // since January and the arithmetic is unit-tested there.
+  let summary = null;
+  let budgets = {};
+  try {
+    const now = new Date();
+    summary = await callBackend(`/api/budgets/summary?year=${now.getFullYear()}&month=${now.getMonth() + 1}`);
+    const doc = await callBackend('/api/budgets');
+    budgets = (doc && doc.monthly) || {};
+  } catch (error) {
+    console.error('Failed to build the spending overview', error);
+  }
+
   return (
     <MobileReviewClient
       initialTransactions={transactions}
       initialReturns={returns}
       tripLinks={tripLinks}
+      initialSummary={summary}
+      initialBudgets={budgets}
     />
   );
 }

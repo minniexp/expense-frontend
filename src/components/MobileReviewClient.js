@@ -3,6 +3,8 @@
 import { useState, useMemo, useCallback } from 'react';
 import { CATEGORIES, PURCHASE_CATEGORIES, POINTS_OPTIONS, PAYMENT_METHODS, MONTH_NAMES } from '@/utils/constants';
 import { updateManyTransactions } from '@/services/api';
+import SpendingOverview from '@/components/SpendingOverview';
+import BudgetEditor from '@/components/BudgetEditor';
 
 /**
  * Reviewing transactions on a phone.
@@ -65,7 +67,10 @@ function Field({ label, children, hint }) {
   );
 }
 
-export default function MobileReviewClient({ initialTransactions, initialReturns, tripLinks }) {
+export default function MobileReviewClient({ initialTransactions, initialReturns, tripLinks, initialSummary, initialBudgets }) {
+  const [summary, setSummary] = useState(initialSummary || null);
+  const [budgets, setBudgets] = useState(initialBudgets || {});
+  const [editingBudgets, setEditingBudgets] = useState(false);
   const [transactions, setTransactions] = useState(initialTransactions || []);
   const [edits, setEdits] = useState({});
   const [openId, setOpenId] = useState(null);
@@ -161,6 +166,8 @@ export default function MobileReviewClient({ initialTransactions, initialReturns
       </header>
 
       <main className="px-3 py-3 flex flex-col gap-2.5" style={{ paddingBottom: '7rem' }}>
+        <SpendingOverview summary={summary} onEditBudgets={() => setEditingBudgets(true)} />
+
         {visible.length === 0 && (
           <p className="text-center text-gray-400 py-16">
             {showReviewed ? 'Nothing here.' : 'Everything is reviewed.'}
@@ -407,6 +414,24 @@ export default function MobileReviewClient({ initialTransactions, initialReturns
           );
         })}
       </main>
+
+      {editingBudgets && (
+        <BudgetEditor
+          initial={budgets}
+          onClose={() => setEditingBudgets(false)}
+          onSaved={async (monthly) => {
+            setBudgets(monthly);
+            setEditingBudgets(false);
+            // Re-read rather than recompute here: `accumulated` spans the whole year, and the
+            // server owns that arithmetic.
+            try {
+              const res = await fetch(`/api/budgets/summary?year=${summary?.year}&month=${summary?.month}`,
+                { credentials: 'include' });
+              if (res.ok) setSummary(await res.json());
+            } catch { /* the numbers are stale, not wrong; the next load fixes them */ }
+          }}
+        />
+      )}
 
       {/* Save bar. Only present when there is something to save, so it never steals a thumb-width
           of screen for nothing. */}
