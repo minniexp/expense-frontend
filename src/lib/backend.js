@@ -29,9 +29,11 @@ import { authOptions } from '@/lib/authOptions';
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 export class BackendError extends Error {
-  constructor(message, status) {
+  constructor(message, status, details) {
     super(message);
     this.status = status;
+    // Per-item validation errors from the backend, when it sent any. See errorResponse().
+    if (details !== undefined) this.details = details;
   }
 }
 
@@ -95,7 +97,8 @@ export async function callBackend(path, options = {}) {
   if (!res.ok) {
     throw new BackendError(
       (data && (data.error || data.message)) || `Backend error (HTTP ${res.status})`,
-      res.status
+      res.status,
+      backendErrorDetails(data)
     );
   }
 
@@ -175,10 +178,29 @@ export async function callBackendAsService(path, { method = 'POST', body, bearer
   if (!res.ok) {
     throw new BackendError(
       (data && (data.error || data.message)) || `Backend error (HTTP ${res.status})`,
-      res.status
+      res.status,
+      backendErrorDetails(data)
     );
   }
   return data;
+}
+
+/**
+ * The backend's per-item validation errors, if it sent any.
+ *
+ * These are written for whoever sent the request — "Unknown card ...8923 — add it to
+ * CARD_LAST4_MAP" says exactly what to fix. Collapsing them to the envelope's "Nothing was saved."
+ * leaves a phone with a failure and no way to act on it, which matters now that a bank alert is the
+ * only record of a transaction: an unexplained rejection is a missing expense.
+ *
+ * Deliberately narrow. Only this one known-shaped field crosses back; everything else the backend
+ * says stays server-side, for the same reason a non-JSON body is never forwarded verbatim.
+ */
+function backendErrorDetails(data) {
+  if (!data || !Array.isArray(data.errors)) return undefined;
+  return data.errors
+    .filter((e) => e && typeof e.message === 'string')
+    .map((e) => ({ index: e.index, message: e.message }));
 }
 
 /** Turn a BackendError into a Response, without leaking internals on unexpected failures. */
@@ -186,5 +208,10 @@ export function errorResponse(err) {
   const status = err instanceof BackendError ? err.status : 500;
   const message = err instanceof BackendError ? err.message : 'Internal server error';
   if (!(err instanceof BackendError)) console.error('Proxy error:', err);
-  return Response.json({ error: message }, { status });
+
+  const details = err instanceof BackendError && Array.isArray(err.details) && err.details.length
+    ? err.details
+    : null;
+
+  return Response.json(details ? { error: message, errors: details } : { error: message }, { status });
 }

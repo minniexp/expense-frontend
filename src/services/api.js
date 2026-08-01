@@ -364,6 +364,30 @@ export const updateManyTransactions = async (transactions) => {
 };
 
 /**
+ * Permanently delete transactions.
+ *
+ * There is no undo. The backend also unlinks each row from any return that covered it and takes its
+ * amount back off that return's total, so the caller does not have to know about that relationship.
+ *
+ * @param {string[]} ids - MongoDB _id values
+ * @returns {Promise<{deleted: number, requested: number}>}
+ */
+export const deleteTransactions = async (ids) => {
+  const response = await fetch('/api/transactions/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+    credentials: 'include'
+  });
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error((data && (data.error || data.message)) || `Delete failed (HTTP ${response.status})`);
+  }
+  return data;
+};
+
+/**
  * Update a single transaction
  * @param {Object} transaction - Transaction object to update
  * @returns {Promise} - Response from the API

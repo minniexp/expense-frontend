@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { PAYMENT_METHODS, CATEGORIES, PURCHASE_CATEGORIES, POINTS_OPTIONS, MONTH_NAMES } from '@/utils/constants';
-import { fetchMongoDBTransactions, fetchAvailableReturns, updateManyTransactions, createReturnDocument, fetchReturnById, updateReturnDocumentById } from '@/services/api';
+import { fetchMongoDBTransactions, fetchAvailableReturns, updateManyTransactions, createReturnDocument, fetchReturnById, updateReturnDocumentById, deleteTransactions } from '@/services/api';
 
 export default function ReviewPage({initialTransactions, initialReturns}) {
   const router = useRouter();
@@ -24,6 +24,10 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedQuarters, setExpandedQuarters] = useState(new Set());
   const [showReturnModal, setShowReturnModal] = useState(false);
+  // Null until the delete button is pressed; then holds the rows about to go, so the confirmation
+  // can show exactly what is at stake rather than a count alone.
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [newReturnData, setNewReturnData] = useState({
     date: '',
     total: 0,
@@ -98,6 +102,48 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
   useEffect(() => {
     console.log('Selected transactions:', Array.from(selectedTransactions));
   }, [selectedTransactions]);
+
+  /**
+   * Open the delete confirmation.
+   *
+   * Deliberately gathers the rows now rather than passing a count through: the dialog names what is
+   * about to be destroyed, and flags any row tied to a return, because deleting one of those also
+   * changes what that return says you are owed.
+   */
+  const handleDeleteSelectedClick = () => {
+    const rows = transactions.filter((t) => selectedTransactions.has(t._id));
+    if (rows.length === 0) return;
+    setPendingDelete({
+      rows,
+      linkedToReturn: rows.filter((t) => t.returnId).length,
+    });
+  };
+
+  const confirmDeleteSelected = async () => {
+    if (!pendingDelete) return;
+    const ids = pendingDelete.rows.map((t) => t._id);
+
+    try {
+      setDeleting(true);
+      const result = await deleteTransactions(ids);
+
+      // Drop them locally rather than refetching: the grid holds unsaved edits to other rows, and
+      // a refetch would silently discard them.
+      const gone = new Set(ids);
+      setTransactions((current) => current.filter((t) => !gone.has(t._id)));
+      setSelectedTransactions(new Set());
+      setPendingDelete(null);
+
+      const missing = ids.length - (result?.deleted ?? ids.length);
+      alert(`Deleted ${result?.deleted ?? ids.length} transaction(s).`
+        + (missing > 0 ? ` ${missing} were already gone.` : ''));
+    } catch (err) {
+      console.error('Delete failed:', err);
+      alert(`Could not delete: ${err.message}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Add cell edit handler
   const handleCellEdit = (transactionId, field, value) => {
@@ -212,7 +258,7 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
             {renderPurchaseCategorySelector(transaction, value)}
           </div>
         );
-      } else if (field === 'needToBePaidback' || field === 'returned') {
+      } else if (field === 'needToBePaidback' || field === 'returned' || field === 'reviewed') {
         return (
           <select
             autoFocus
@@ -324,7 +370,7 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
       );
     }
 
-    if (field === 'needToBePaidback' || field === 'returned') {
+    if (field === 'needToBePaidback' || field === 'returned' || field === 'reviewed') {
       return (
         <div 
           className="cursor-pointer"
@@ -917,9 +963,86 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
             >
               Create New Return Doc
             </button>
+
+            <button
+              onClick={handleDeleteSelectedClick}
+              disabled={loading || deleting || selectedTransactions.size === 0}
+              className={`
+                font-bold py-2 px-4 rounded transition-colors duration-200
+                ${selectedTransactions.size === 0 || deleting
+                  ? 'bg-gray-400 cursor-not-allowed text-white'
+                  : 'bg-red-600 hover:bg-red-800 text-white'
+                }
+              `}
+            >
+              {selectedTransactions.size === 0
+                ? 'Delete'
+                : `Delete Selected (${selectedTransactions.size})`}
+            </button>
           </>
         )}
       </div>
+
+      {pendingDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-bold text-white mb-2">
+              Delete {pendingDelete.rows.length} transaction{pendingDelete.rows.length === 1 ? '' : 's'}?
+            </h2>
+            <p className="text-gray-300 text-sm mb-4">
+              This cannot be undone. There is no bank feed to restore them from.
+            </p>
+
+            {pendingDelete.linkedToReturn > 0 && (
+              <p className="text-yellow-300 text-sm mb-4 border border-yellow-700 bg-yellow-900 bg-opacity-30 rounded p-3">
+                {pendingDelete.linkedToReturn} of these {pendingDelete.linkedToReturn === 1 ? 'is' : 'are'} part
+                of a return. Deleting {pendingDelete.linkedToReturn === 1 ? 'it' : 'them'} also takes
+                the amount back off that return&rsquo;s total.
+              </p>
+            )}
+
+            <ul className="text-sm text-gray-200 mb-5 divide-y divide-gray-700 border border-gray-700 rounded">
+              {pendingDelete.rows.slice(0, 12).map((t) => (
+                <li key={t._id} className="flex justify-between gap-3 px-3 py-2">
+                  <span className="truncate">
+                    <span className="text-gray-400 mr-2">{t.date}</span>
+                    {t.description || '(no description)'}
+                  </span>
+                  <span className={`shrink-0 tabular-nums ${
+                    t.transactionType === 'income' ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {Number(t.amount).toFixed(2)}
+                  </span>
+                </li>
+              ))}
+              {pendingDelete.rows.length > 12 && (
+                <li className="px-3 py-2 text-gray-400">
+                  and {pendingDelete.rows.length - 12} more…
+                </li>
+              )}
+            </ul>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setPendingDelete(null)}
+                disabled={deleting}
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteSelected}
+                disabled={deleting}
+                className={`font-bold py-2 px-4 rounded text-white ${
+                  deleting ? 'bg-gray-500 cursor-not-allowed' : 'bg-red-600 hover:bg-red-800'
+                }`}
+              >
+                {deleting ? 'Deleting…' : 'Delete permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Year Tabs */}
       <div className="mb-6">
@@ -1319,7 +1442,8 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
                 </th>
                 <th className="px-4 py-2">Year</th>
                 <th className="px-4 py-2">MM</th>
-                <th className="px-4 py-2">DD</th>                
+                <th className="px-4 py-2">DD</th>
+                <th className="px-4 py-2">Time</th>
                 <th className="px-4 py-2">Amount</th>
                 <th className="px-4 py-2">Description</th>
                 <th className="px-4 py-2">Category</th>
@@ -1329,10 +1453,10 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
                 <th className="px-4 py-2">Transaction Type</th>
                 <th className="px-4 py-2">Return</th>
                 <th className="px-4 py-2">Returned</th>
+                <th className="px-4 py-2">Reviewed?</th>
                 <th className="px-4 py-2">Need To Be Paid Back</th>
                 <th className="px-4 py-2">Notes</th>
                 <th className="px-4 py-2">User ID</th>
-                <th className="px-4 py-2">Teller Transaction ID</th>
                 <th className="px-4 py-2">MongoDB ID</th>
               </tr>
             </thead>
@@ -1355,6 +1479,11 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
                   </td>
                   <td className="px-4 py-2">
                     {renderEditableCell(transaction, 'day', transaction.day)}
+                  </td>
+                  {/* Read-only: this is what the bank's alert email said, not something to revise.
+                      Empty for every row that came from the bank feed, which reports a date only. */}
+                  <td className="px-4 py-2 whitespace-nowrap text-gray-400">
+                    {transaction.time || '—'}
                   </td>
                   <td className={`px-4 py-2 ${
                     transaction.transactionType === 'income' ? 'text-green-400' : 'text-red-400'
@@ -1385,6 +1514,11 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
                   <td className="px-4 py-2">
                     {renderEditableCell(transaction, 'returned', transaction.returned)}
                   </td>
+                  {/* Defaults to false rather than undefined: rows created before this column
+                      existed have no value, and the Yes/No editor reads value.toString(). */}
+                  <td className="px-4 py-2">
+                    {renderEditableCell(transaction, 'reviewed', transaction.reviewed ?? false)}
+                  </td>
                   <td className="px-4 py-2">
                     {renderEditableCell(transaction, 'needToBePaidback', transaction.needToBePaidback)}
                   </td>
@@ -1393,9 +1527,6 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
                   </td>
                   <td className="px-4 py-2">
                     {renderEditableCell(transaction, 'userId', transaction.userId)}
-                  </td>
-                  <td className="px-4 py-2 text-xs font-mono">
-                    {transaction.tellerTransactionId || '-'}
                   </td>
                   <td className="px-4 py-2 text-xs font-mono">{transaction._id}</td>
                 </tr>
