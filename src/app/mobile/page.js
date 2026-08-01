@@ -50,6 +50,15 @@ export default async function MobileReviewPage() {
     console.error('Failed to resolve trip links', error);
   }
 
+  // The trip list for the Trips tab. Fetched here for the same reason as everything else on this
+  // page: one request on first paint beats a spinner the moment the tab is tapped.
+  let trips = [];
+  try {
+    trips = (await callBackend('/api/trips')) || [];
+  } catch (error) {
+    console.error('Failed to load trips', error);
+  }
+
   // The spending overview. Computed on the server because `accumulated` needs every transaction
   // since January and the arithmetic is unit-tested there.
   let summary = null;
@@ -70,6 +79,7 @@ export default async function MobileReviewPage() {
       tripLinks={tripLinks}
       initialSummary={summary}
       initialBudgets={budgets}
+      initialTrips={trips}
     />
   );
 }

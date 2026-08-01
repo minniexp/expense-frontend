@@ -1,19 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { PURCHASE_CATEGORIES } from '@/utils/constants';
+import { BUDGET_CATEGORIES } from '@/utils/constants';
 
 /**
- * Setting the monthly allowance for each purchase category.
+ * Setting the monthly allowance for each category.
  *
  * A sheet rather than a page: budgets are set once and adjusted rarely, so it should open over the
  * list and close again without losing your place in it.
  *
- * "etc." is offered alongside the real categories because spending with no purchase category still
- * happens and still needs an allowance — leaving it out would make the one line you cannot control
- * the one you cannot budget for either.
+ * "etc." is offered alongside the real categories because spending with no category still happens
+ * and still needs an allowance — leaving it out would make the one line you cannot control the one
+ * you cannot budget for either.
  */
-const EDITABLE = [...PURCHASE_CATEGORIES, 'etc.'];
+const EDITABLE = [...BUDGET_CATEGORIES, 'etc.'];
 
 export default function BudgetEditor({ initial, onClose, onSaved }) {
   const [values, setValues] = useState(() => {
@@ -59,7 +59,7 @@ export default function BudgetEditor({ initial, onClose, onSaved }) {
         <div className="px-4 pt-4 pb-3 border-b border-gray-800 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold">Monthly budgets</h2>
-            <p className="text-sm text-gray-400 tabular-nums">{total.toFixed(2)} per month total</p>
+            <p className="text-sm text-gray-400 tabular-nums">${total.toFixed(2)} per month total</p>
           </div>
           <button
             type="button"

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { MONTH_NAMES } from '@/utils/constants';
 
 /**
- * This month's spending against a rolling budget, per purchase category.
+ * This month's spending against a rolling budget, per category.
  *
  * Three numbers, because one is not enough to act on. `current` says what has gone out this month;
  * `budgeted` says what a month is meant to hold; `accumulated` says what is actually left once
@@ -17,7 +17,7 @@ import { MONTH_NAMES } from '@/utils/constants';
  */
 
 const money = (n) =>
-  Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function Bar({ current, accumulated, budgeted }) {
   // What was available before this month's spending: the running allowance plus what has gone.
@@ -89,9 +89,9 @@ export default function SpendingOverview({ summary, onEditBudgets }) {
           {/* Worst position first — what is overdrawn is what needs looking at. */}
           <div className="flex flex-col gap-3.5">
             {worstFirst.map((c) => (
-              <div key={c.purchaseCategory} className="flex flex-col gap-1.5">
+              <div key={c.category} className="flex flex-col gap-1.5">
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="font-medium truncate">{c.purchaseCategory}</span>
+                  <span className="font-medium truncate">{c.category}</span>
                   <span className="text-sm tabular-nums text-gray-300 shrink-0">
                     {money(c.current)}
                     <span className="text-gray-500"> / {money(c.budgeted)}</span>

@@ -33,6 +33,16 @@ export const CATEGORIES = [
   'payroll',
 ];
 
+// Categories budgeted against, monthly. A curated subset of CATEGORIES — the ones worth setting an
+// allowance for, in the order they should appear in the budget editor.
+export const BUDGET_CATEGORIES = [
+  'fuel',
+  'offering',
+  'travel',
+  'bill',
+  'personal',
+];
+
 // Purchase categories
 export const PURCHASE_CATEGORIES = [
   'groceries',

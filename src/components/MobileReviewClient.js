@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { CATEGORIES, PURCHASE_CATEGORIES, POINTS_OPTIONS, PAYMENT_METHODS, MONTH_NAMES } from '@/utils/constants';
+import { CATEGORIES, PURCHASE_CATEGORIES, POINTS_OPTIONS, PAYMENT_METHODS } from '@/utils/constants';
 import { updateManyTransactions } from '@/services/api';
 import SpendingOverview from '@/components/SpendingOverview';
 import BudgetEditor from '@/components/BudgetEditor';
+import MobileTripsClient from '@/components/MobileTripsClient';
 
 /**
  * Reviewing transactions on a phone.
@@ -20,6 +21,10 @@ import BudgetEditor from '@/components/BudgetEditor';
  *
  * Nothing saves until you press Save. Edits are held per row so several cards can be worked
  * through and committed in one request.
+ *
+ * A second tab shares the same shell: Trips, for checking balances on the road without switching
+ * to the desktop-shaped /trips pages. One header, one safe-area frame, one screen that already
+ * has both hands' worth of thumb reach mapped out — a second page would just duplicate that.
  */
 
 /** Apple's minimum comfortable target is 44pt. Every control here meets it. */
@@ -67,15 +72,14 @@ function Field({ label, children, hint }) {
   );
 }
 
-export default function MobileReviewClient({ initialTransactions, initialReturns, tripLinks, initialSummary, initialBudgets }) {
+export default function MobileReviewClient({ initialTransactions, initialReturns, tripLinks, initialSummary, initialBudgets, initialTrips }) {
+  const [view, setView] = useState('review');   // 'review' | 'trips'
   const [summary, setSummary] = useState(initialSummary || null);
   const [budgets, setBudgets] = useState(initialBudgets || {});
   const [editingBudgets, setEditingBudgets] = useState(false);
   const [transactions, setTransactions] = useState(initialTransactions || []);
   const [edits, setEdits] = useState({});
   const [openId, setOpenId] = useState(null);
-  const [showReviewed, setShowReviewed] = useState(false);
-  const [monthFilter, setMonthFilter] = useState('all');
   const [saving, setSaving] = useState(false);
 
   const returns = initialReturns || [];
@@ -99,14 +103,12 @@ export default function MobileReviewClient({ initialTransactions, initialReturns
   const visible = useMemo(() => {
     return transactions
       .map(merged)
-      .filter((t) => (showReviewed ? true : !t.reviewed))
-      .filter((t) => (monthFilter === 'all' ? true : t.month === Number(monthFilter)))
       .sort((a, b) => {
         if (a.date !== b.date) return a.date < b.date ? 1 : -1;
         const byTime = minutesIntoDay(b.time) - minutesIntoDay(a.time);
         return byTime !== 0 ? byTime : String(b._id).localeCompare(String(a._id));
       });
-  }, [transactions, merged, showReviewed, monthFilter]);
+  }, [transactions, merged]);
 
   const unreviewedCount = transactions.filter((t) => !merged(t).reviewed).length;
 
@@ -136,42 +138,44 @@ export default function MobileReviewClient({ initialTransactions, initialReturns
         className="sticky top-0 z-20 bg-gray-900/95 backdrop-blur border-b border-gray-800"
         style={{ paddingTop: 'max(env(safe-area-inset-top), 0.75rem)' }}
       >
-        <div className="px-4 pb-3 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">Review</h1>
-            <span className="text-sm text-amber-400 tabular-nums">
+        <div className="px-4 pb-3 flex items-center justify-between gap-3">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setView('review')}
+              className={`${TAP} text-[15px] font-semibold ${
+                view === 'review' ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-300'
+              }`}
+            >
+              Review
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('trips')}
+              className={`${TAP} text-[15px] font-semibold ${
+                view === 'trips' ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-300'
+              }`}
+            >
+              Trips
+            </button>
+          </div>
+          {view === 'review' && unreviewedCount > 0 && (
+            <span className="text-sm text-amber-400 tabular-nums shrink-0">
               {unreviewedCount} to review
             </span>
-          </div>
-
-          <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1">
-            <Chip selected={!showReviewed} onClick={() => setShowReviewed(false)} tone="amber">
-              Needs review
-            </Chip>
-            <Chip selected={showReviewed} onClick={() => setShowReviewed(true)}>
-              All
-            </Chip>
-            <select
-              value={monthFilter}
-              onChange={(e) => setMonthFilter(e.target.value)}
-              className={`${TAP} bg-gray-700 border border-gray-600 text-[15px]`}
-            >
-              <option value="all">Every month</option>
-              {Object.entries(MONTH_NAMES).map(([n, name]) => (
-                <option key={n} value={n}>{name}</option>
-              ))}
-            </select>
-          </div>
+          )}
         </div>
       </header>
 
       <main className="px-3 py-3 flex flex-col gap-2.5" style={{ paddingBottom: '7rem' }}>
+        {view === 'trips' ? (
+          <MobileTripsClient initialTrips={initialTrips} />
+        ) : (
+          <>
         <SpendingOverview summary={summary} onEditBudgets={() => setEditingBudgets(true)} />
 
         {visible.length === 0 && (
-          <p className="text-center text-gray-400 py-16">
-            {showReviewed ? 'Nothing here.' : 'Everything is reviewed.'}
-          </p>
+          <p className="text-center text-gray-400 py-16">Nothing here.</p>
         )}
 
         {visible.map((t) => {
@@ -413,6 +417,8 @@ export default function MobileReviewClient({ initialTransactions, initialReturns
             </section>
           );
         })}
+          </>
+        )}
       </main>
 
       {editingBudgets && (
