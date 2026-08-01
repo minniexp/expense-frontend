@@ -183,15 +183,38 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
     }
   };
 
-  // Add cell edit handler
+  /**
+   * Apply one cell edit.
+   *
+   * `date`, `year`, `month` and `day` are four columns holding one fact, and editing a cell used to
+   * write only that cell. Correcting a date through the MM and DD columns therefore left `date`
+   * behind: the grid went on displaying the corrected day while every consumer that reads `date` —
+   * the sort, the ingest dedupe key, the link to a month's return — still saw the old one. Eight
+   * rows in the ledger had drifted that way. Whichever of the four is edited, all four are rewritten.
+   */
   const handleCellEdit = (transactionId, field, value) => {
-    setTransactions(prevTransactions => {
-      return prevTransactions.map(transaction => 
-        transaction._id === transactionId 
-          ? { ...transaction, [field]: value }
-          : transaction
-      );
-    });
+    setTransactions(prevTransactions =>
+      prevTransactions.map(transaction => {
+        if (transaction._id !== transactionId) return transaction;
+
+        const updated = { ...transaction, [field]: value };
+
+        if (field === 'date') {
+          const [y, m, d] = String(value || '').split('-').map(Number);
+          if (y && m && d) Object.assign(updated, { year: y, month: m, day: d });
+        } else if (field === 'year' || field === 'month' || field === 'day') {
+          const y = Number(updated.year);
+          const m = Number(updated.month);
+          const d = Number(updated.day);
+          if (y && m && d) {
+            const pad = (n) => String(n).padStart(2, '0');
+            updated.date = `${y}-${pad(m)}-${pad(d)}`;
+          }
+        }
+
+        return updated;
+      })
+    );
   };
 
   // Add render functions for different cell types
