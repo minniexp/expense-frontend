@@ -522,29 +522,29 @@ export const createReturnDocument = async (returnData) => {
 };
 
 // Client-side function
+/**
+ * Re-read the ledger from the database.
+ *
+ * `cache: 'no-store'` because the route replies `cache-control: public, max-age=0,
+ * must-revalidate`, which permits the browser to hold a copy and answer from it. That is fine for a
+ * page load and wrong for a Refresh button — the one moment the user is explicitly saying they do
+ * not trust what is on screen.
+ *
+ * Throws rather than returning [] on failure. Swallowing the error meant a failed refresh was
+ * indistinguishable from an empty ledger, and any caller assigning the result would wipe the list
+ * it was trying to update.
+ */
 export const fetchMongoDBTransactions = async () => {
-  try {
-      
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-    
-    
-    const response = await fetch(`/api/transactions`, {
-      headers,
-      credentials: 'include'
-    });
+  const response = await fetch('/api/transactions', {
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    cache: 'no-store',
+  });
 
-    if (!response.ok) {
-      console.error(`Failed to fetch transactions: ${response.status} ${response.statusText}`);
-      return [];
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching transactions:', error);
-    return [];
+  if (!response.ok) {
+    throw new Error(`Could not load transactions (HTTP ${response.status})`);
   }
+  return await response.json();
 };
 
 

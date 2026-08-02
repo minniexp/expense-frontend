@@ -50,6 +50,7 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
   // can show exactly what is at stake rather than a count alone.
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [newReturnData, setNewReturnData] = useState({
     date: '',
     total: 0,
@@ -135,6 +136,39 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
   }, [selectedTransactions]);
 
   const deleteDisabled = loading || deleting || selectedTransactions.size === 0;
+
+  /**
+   * Re-read the ledger and put it on screen.
+   *
+   * The button used to be `onClick={fetchMongoDBTransactions}`, which fetched and threw the answer
+   * away — React passes the click event, the promise resolves, and nothing is ever assigned. It
+   * looked like a working refresh because the page had loaded the same data a moment earlier.
+   *
+   * Unsaved cell edits are discarded, which is what Refresh means; saying so beforehand is the
+   * difference between that and losing work.
+   */
+  const handleRefreshTransactions = async () => {
+    if (refreshing) return;
+    // This grid writes cell edits straight into state with no dirty flag, so there is no way to ask
+    // "is anything unsaved". A selection is the closest honest signal — you select rows here in
+    // order to update them — so it is the only case worth interrupting for.
+    if (selectedTransactions.size > 0
+      && !confirm(`Refresh re-reads everything from the database and will discard any unsaved edits `
+        + `to the ${selectedTransactions.size} selected row(s). Continue?`)) return;
+
+    try {
+      setRefreshing(true);
+      const fresh = await fetchMongoDBTransactions();
+      setTransactions(Array.isArray(fresh) ? fresh : []);
+      setSelectedTransactions(new Set());
+      setEditingCell(null);
+    } catch (error) {
+      console.error('Refresh failed:', error);
+      alert(`Could not refresh: ${error.message}`);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   /**
    * Open the delete confirmation.
@@ -830,8 +864,14 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
       // Clear selection
       setSelectedTransactions(new Set());
       
-      // Refresh transactions to get updated data
-      await fetchMongoDBTransactions();
+      // Re-read, and actually apply it: a return changes returnId and needToBePaidback on every
+      // transaction it covers, so the rows on screen are stale until this lands.
+      try {
+        const fresh = await fetchMongoDBTransactions();
+        if (Array.isArray(fresh)) setTransactions(fresh);
+      } catch (refreshError) {
+        console.error('Return saved, but the list could not be refreshed:', refreshError);
+      }
     } catch (error) {
       console.error('Error creating return document:', error);
       alert(`Failed to create return document: ${error.message}`);
@@ -982,10 +1022,13 @@ export default function ReviewPage({initialTransactions, initialReturns}) {
         </button>
 
         <button
-          onClick={fetchMongoDBTransactions}
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          onClick={handleRefreshTransactions}
+          disabled={refreshing}
+          className={`font-bold py-2 px-4 rounded text-white ${
+            refreshing ? 'bg-gray-500 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-700'
+          }`}
         >
-          Refresh Transactions
+          {refreshing ? 'Refreshing…' : 'Refresh Transactions'}
         </button>
 
         {transactions.length > 0 && (
