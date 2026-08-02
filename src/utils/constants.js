@@ -35,13 +35,25 @@ export const CATEGORIES = [
 
 // Categories budgeted against, monthly. A curated subset of CATEGORIES — the ones worth setting an
 // allowance for, in the order they should appear in the budget editor.
+// The categories a budget can be set for.
+//
+// Deliberately not every value in CATEGORIES. `parents-monthly`, `parents-not monthly` and
+// `business` are money laid out for someone else and reclaimed, so budgeting against them would
+// report overspend that was never yours. `emergency` is a shared pot covering doctors and
+// automobile too — none of those happens on a schedule, so what matters is whether the pot holds.
 export const BUDGET_CATEGORIES = [
-  'fuel',
-  'offering',
-  'travel',
-  'bill',
   'personal',
+  'bill',
+  'fuel',
+  'travel',
+  'offering',
+  'emergency',
 ];
+
+/** Categories folded into one allowance, for labelling the editor. */
+export const BUDGET_GROUP_MEMBERS = {
+  emergency: ['emergency', 'doctors', 'automobile'],
+};
 
 // Purchase categories
 export const PURCHASE_CATEGORIES = [

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { BUDGET_CATEGORIES } from '@/utils/constants';
+import { BUDGET_CATEGORIES, BUDGET_GROUP_MEMBERS } from '@/utils/constants';
 
 /**
  * Setting the monthly allowance for each category.
@@ -9,11 +9,11 @@ import { BUDGET_CATEGORIES } from '@/utils/constants';
  * A sheet rather than a page: budgets are set once and adjusted rarely, so it should open over the
  * list and close again without losing your place in it.
  *
- * "etc." is offered alongside the real categories because spending with no category still happens
- * and still needs an allowance — leaving it out would make the one line you cannot control the one
- * you cannot budget for either.
+ * Only the categories that represent your own spending appear. Money laid out for someone else and
+ * reclaimed is not budgeted, and neither is uncategorised spending — an allowance for "everything
+ * uncategorised" cannot be acted on, whereas categorising the transaction can.
  */
-const EDITABLE = [...BUDGET_CATEGORIES, 'etc.'];
+const EDITABLE = BUDGET_CATEGORIES;
 
 export default function BudgetEditor({ initial, onClose, onSaved }) {
   const [values, setValues] = useState(() => {
@@ -73,7 +73,14 @@ export default function BudgetEditor({ initial, onClose, onSaved }) {
         <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
           {EDITABLE.map((c) => (
             <label key={c} className="flex items-center gap-3 min-h-[44px]">
-              <span className="flex-1 text-[15px]">{c}</span>
+              <span className="flex-1 min-w-0">
+                <span className="text-[15px]">{c}</span>
+                {BUDGET_GROUP_MEMBERS[c] && (
+                  <span className="block text-xs text-gray-500 truncate">
+                    covers {BUDGET_GROUP_MEMBERS[c].join(', ')}
+                  </span>
+                )}
+              </span>
               <span className="text-gray-500">$</span>
               <input
                 type="number"
