@@ -78,6 +78,11 @@ export default function MobileReviewClient({ initialTransactions, initialReturns
   // for looking something up, not for the daily pass.
   const [showReviewed, setShowReviewed] = useState(false);
   const [monthFilter, setMonthFilter] = useState('all');
+  // Search is a mode, not another filter. It answers "where is that one transaction", which is a
+  // different question from "what still needs reviewing" — so it sets the other filters aside
+  // rather than compounding with them, and hides the month overview while it is open.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [summary, setSummary] = useState(initialSummary || null);
   const [budgets, setBudgets] = useState(initialBudgets || {});
   const [editingBudgets, setEditingBudgets] = useState(false);
@@ -104,17 +109,31 @@ export default function MobileReviewClient({ initialTransactions, initialReturns
 
   const dirtyIds = Object.keys(edits);
 
+  const searching = searchOpen && searchTerm.trim() !== '';
+
+  /** Matches the fields you would actually remember: what, how much, where it was filed. */
+  const matchesSearch = useCallback((t) => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return false;
+    return [t.description, t.notes, t.category, t.paymentMethod, t.date, t.time]
+      .some((field) => String(field || '').toLowerCase().includes(q))
+      || Math.abs(Number(t.amount)).toFixed(2).includes(q)
+      || (t.purchaseCategory || []).some((pc) => String(pc).toLowerCase().includes(q));
+  }, [searchTerm]);
+
   const visible = useMemo(() => {
     return transactions
       .map(merged)
-      .filter((t) => (showReviewed ? true : !t.reviewed))
-      .filter((t) => (monthFilter === 'all' ? true : t.month === Number(monthFilter)))
+      // Searching looks across everything: a transaction you are hunting for is usually one you
+      // already reviewed, in a month you are not looking at.
+      .filter((t) => (searching ? matchesSearch(t) : !showReviewed ? !t.reviewed : true))
+      .filter((t) => (searching || monthFilter === 'all' ? true : t.month === Number(monthFilter)))
       .sort((a, b) => {
         if (a.date !== b.date) return a.date < b.date ? 1 : -1;
         const byTime = minutesIntoDay(b.time) - minutesIntoDay(a.time);
         return byTime !== 0 ? byTime : String(b._id).localeCompare(String(a._id));
       });
-  }, [transactions, merged, showReviewed, monthFilter]);
+  }, [transactions, merged, showReviewed, monthFilter, searching, matchesSearch]);
 
   const unreviewedCount = transactions.filter((t) => !merged(t).reviewed).length;
 
@@ -165,14 +184,55 @@ export default function MobileReviewClient({ initialTransactions, initialReturns
               Trips
             </button>
           </div>
-          {view === 'review' && unreviewedCount > 0 && (
-            <span className="text-sm text-amber-400 tabular-nums shrink-0">
-              {unreviewedCount} to review
-            </span>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {view === 'review' && unreviewedCount > 0 && !searchOpen && (
+              <span className="text-sm text-amber-400 tabular-nums">
+                {unreviewedCount} to review
+              </span>
+            )}
+            {view === 'review' && (
+              <button
+                type="button"
+                aria-label={searchOpen ? 'Close search' : 'Search transactions'}
+                onClick={() => {
+                  // Closing always clears, so the list you return to is the one you left.
+                  if (searchOpen) setSearchTerm('');
+                  setSearchOpen(!searchOpen);
+                }}
+                className={`min-h-[44px] min-w-[44px] grid place-items-center rounded-xl active:scale-[0.97] transition-transform ${
+                  searchOpen ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-300'
+                }`}
+              >
+                {searchOpen ? (
+                  <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                    <path d="M5 5l10 10M15 5L5 15" />
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <circle cx="9" cy="9" r="6" />
+                    <path d="M13.5 13.5L18 18" strokeLinecap="round" />
+                  </svg>
+                )}
+              </button>
+            )}
+          </div>
         </div>
 
-        {view === 'review' && (
+        {view === 'review' && searchOpen && (
+          <div className="px-4 pb-3">
+            <input
+              autoFocus
+              type="search"
+              inputMode="search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Merchant, amount, category, note…"
+              className="w-full min-h-[44px] px-4 rounded-xl bg-gray-800 border border-gray-600 text-[15px]"
+            />
+          </div>
+        )}
+
+        {view === 'review' && !searchOpen && (
           <div className="flex gap-2 overflow-x-auto px-4 pb-3">
             <Chip selected={!showReviewed} onClick={() => setShowReviewed(false)} tone="amber">
               Needs review{unreviewedCount > 0 ? ` (${unreviewedCount})` : ''}
@@ -199,15 +259,25 @@ export default function MobileReviewClient({ initialTransactions, initialReturns
           <MobileTripsClient initialTrips={initialTrips} />
         ) : (
           <>
-        <SpendingOverview summary={summary} onEditBudgets={() => setEditingBudgets(true)} />
+        {!searchOpen && (
+          <SpendingOverview summary={summary} onEditBudgets={() => setEditingBudgets(true)} />
+        )}
 
-        {visible.length === 0 && (
+        {searchOpen && !searching && (
           <p className="text-center text-gray-400 py-16">
-            {showReviewed ? 'Nothing matches that filter.' : 'Everything is reviewed.'}
+            Type to search all {transactions.length} transactions.
           </p>
         )}
 
-        {visible.map((t) => {
+        {(!searchOpen || searching) && visible.length === 0 && (
+          <p className="text-center text-gray-400 py-16">
+            {searching
+              ? `Nothing matches “${searchTerm.trim()}”.`
+              : showReviewed ? 'Nothing matches that filter.' : 'Everything is reviewed.'}
+          </p>
+        )}
+
+        {(!searchOpen || searching) && visible.map((t) => {
           const open = openId === t._id;
           const trip = tripByTxn.get(t.tellerTransactionId);
           const isDirty = Boolean(edits[t._id]);
