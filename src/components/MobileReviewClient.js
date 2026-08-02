@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { CATEGORIES, PURCHASE_CATEGORIES, POINTS_OPTIONS, PAYMENT_METHODS } from '@/utils/constants';
+import { CATEGORIES, PURCHASE_CATEGORIES, POINTS_OPTIONS, PAYMENT_METHODS, MONTH_NAMES } from '@/utils/constants';
 import { updateManyTransactions } from '@/services/api';
 import SpendingOverview from '@/components/SpendingOverview';
 import BudgetEditor from '@/components/BudgetEditor';
@@ -74,6 +74,10 @@ function Field({ label, children, hint }) {
 
 export default function MobileReviewClient({ initialTransactions, initialReturns, tripLinks, initialSummary, initialBudgets, initialTrips }) {
   const [view, setView] = useState('review');   // 'review' | 'trips'
+  // Defaults to the unreviewed queue: that is the reason to open this page. 'all' is there
+  // for looking something up, not for the daily pass.
+  const [showReviewed, setShowReviewed] = useState(false);
+  const [monthFilter, setMonthFilter] = useState('all');
   const [summary, setSummary] = useState(initialSummary || null);
   const [budgets, setBudgets] = useState(initialBudgets || {});
   const [editingBudgets, setEditingBudgets] = useState(false);
@@ -103,12 +107,14 @@ export default function MobileReviewClient({ initialTransactions, initialReturns
   const visible = useMemo(() => {
     return transactions
       .map(merged)
+      .filter((t) => (showReviewed ? true : !t.reviewed))
+      .filter((t) => (monthFilter === 'all' ? true : t.month === Number(monthFilter)))
       .sort((a, b) => {
         if (a.date !== b.date) return a.date < b.date ? 1 : -1;
         const byTime = minutesIntoDay(b.time) - minutesIntoDay(a.time);
         return byTime !== 0 ? byTime : String(b._id).localeCompare(String(a._id));
       });
-  }, [transactions, merged]);
+  }, [transactions, merged, showReviewed, monthFilter]);
 
   const unreviewedCount = transactions.filter((t) => !merged(t).reviewed).length;
 
@@ -165,6 +171,27 @@ export default function MobileReviewClient({ initialTransactions, initialReturns
             </span>
           )}
         </div>
+
+        {view === 'review' && (
+          <div className="flex gap-2 overflow-x-auto px-4 pb-3">
+            <Chip selected={!showReviewed} onClick={() => setShowReviewed(false)} tone="amber">
+              Needs review{unreviewedCount > 0 ? ` (${unreviewedCount})` : ''}
+            </Chip>
+            <Chip selected={showReviewed} onClick={() => setShowReviewed(true)}>
+              All
+            </Chip>
+            <select
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              className={`${TAP} bg-gray-700 border border-gray-600 text-[15px]`}
+            >
+              <option value="all">Every month</option>
+              {Object.entries(MONTH_NAMES).map(([n, name]) => (
+                <option key={n} value={n}>{name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </header>
 
       <main className="px-3 py-3 flex flex-col gap-2.5" style={{ paddingBottom: '7rem' }}>
@@ -175,7 +202,9 @@ export default function MobileReviewClient({ initialTransactions, initialReturns
         <SpendingOverview summary={summary} onEditBudgets={() => setEditingBudgets(true)} />
 
         {visible.length === 0 && (
-          <p className="text-center text-gray-400 py-16">Nothing here.</p>
+          <p className="text-center text-gray-400 py-16">
+            {showReviewed ? 'Nothing matches that filter.' : 'Everything is reviewed.'}
+          </p>
         )}
 
         {visible.map((t) => {
