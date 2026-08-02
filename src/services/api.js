@@ -364,6 +364,29 @@ export const updateManyTransactions = async (transactions) => {
 };
 
 /**
+ * Save a transaction typed in by hand.
+ *
+ * Goes to /manual, not the older /single: that route hands the request body to the model almost
+ * untouched, so the amount keeps whatever sign was typed and the row is saved without a source or a
+ * duplicate check. This one runs the same builder the bank alerts do.
+ *
+ * @returns {Promise<{duplicate: boolean, transaction: object, message: string}>}
+ */
+export const createManualTransaction = async (payload) => {
+  const response = await fetch('/api/transactions/manual', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    credentials: 'include',
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error((data && (data.error || data.message)) || `Save failed (HTTP ${response.status})`);
+  }
+  return data;
+};
+
+/**
  * Permanently delete transactions.
  *
  * There is no undo. The backend also unlinks each row from any return that covered it and takes its

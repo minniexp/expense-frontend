@@ -6,6 +6,7 @@ import { updateManyTransactions } from '@/services/api';
 import SpendingOverview from '@/components/SpendingOverview';
 import BudgetEditor from '@/components/BudgetEditor';
 import MobileTripsClient from '@/components/MobileTripsClient';
+import NewTransactionSheet from '@/components/NewTransactionSheet';
 
 /**
  * Reviewing transactions on a phone.
@@ -81,6 +82,7 @@ export default function MobileReviewClient({ initialTransactions, initialReturns
   // Search is a mode, not another filter. It answers "where is that one transaction", which is a
   // different question from "what still needs reviewing" — so it sets the other filters aside
   // rather than compounding with them, and hides the month overview while it is open.
+  const [addingNew, setAddingNew] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [summary, setSummary] = useState(initialSummary || null);
@@ -189,6 +191,18 @@ export default function MobileReviewClient({ initialTransactions, initialReturns
               <span className="text-sm text-amber-400 tabular-nums">
                 {unreviewedCount} to review
               </span>
+            )}
+            {view === 'review' && !searchOpen && (
+              <button
+                type="button"
+                aria-label="New transaction"
+                onClick={() => setAddingNew(true)}
+                className="min-h-[44px] min-w-[44px] grid place-items-center rounded-xl bg-emerald-600 text-white active:scale-[0.97] transition-transform"
+              >
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                  <path d="M10 4v12M4 10h12" />
+                </svg>
+              </button>
             )}
             {view === 'review' && (
               <button
@@ -519,6 +533,20 @@ export default function MobileReviewClient({ initialTransactions, initialReturns
           </>
         )}
       </main>
+
+      {addingNew && (
+        <NewTransactionSheet
+          onClose={() => setAddingNew(false)}
+          onCreated={(created) => {
+            setAddingNew(false);
+            setTransactions((current) => [created, ...current]);
+            // It arrives reviewed, so the default filter would hide it — show everything briefly so
+            // what you just typed is visible rather than seeming not to have saved.
+            setShowReviewed(true);
+            setOpenId(created._id);
+          }}
+        />
+      )}
 
       {editingBudgets && (
         <BudgetEditor
